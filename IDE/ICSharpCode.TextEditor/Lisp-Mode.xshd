@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+
+<SyntaxDefinition name="Lisp" extensions=".lisp;.scm">
+	<Properties>
+		<Property name="LineComment" value=";"/>
+	</Properties>
+
+	<Digits name="Digits" bold="false" italic="false" color="DarkRed"/>
+
+	<RuleSets>
+		<RuleSet ignorecase="false">
+			<Delimiters>() </Delimiters>
+
+			<Span name="LINECOMMENT" bold="false" italic="true" color="DarkGreen" stopateol="true">
+				<Begin>;</Begin>
+			</Span>
+		
+			<Span name="BLOCKCOMMENT" bold="false" italic="false" color="DarkGreen" stopateol="false">
+				<Begin>#|</Begin>
+				<End>|#</End>
+			</Span>
+		
+			<Span name="DOCSTRING" bold="false" italic="false" color="DarkMagenta" stopateol="false">
+				<Begin>"""</Begin>
+				<End>"""</End>
+			</Span>
+
+			<Span name="STRING" bold="false" italic="false" color="DarkMagenta" stopateol="true">
+				<Begin>"</Begin>
+				<End>"</End>
+			</Span>
+
+			<MarkPrevious bold="true" italic="false" color="MidnightBlue">(</MarkPrevious>
+
+			<KeyWords name="Punctuation" bold="false" italic="false" color="Black">
+				<Key word="(" />
+				<Key word=")" />
+			</KeyWords>
+		
+			<KeyWords name="DeclarationKeywords" bold="false" italic="false" color="DarkCyan">
+				<Key word="define" />
+				<Key word="defmacro" />
+				<Key word="lambda" />
+			</KeyWords>
+
+			<KeyWords name="SelectionStatements" bold="false" italic="false" color="Blue">
+				<Key word="if" />
+				<Key word="cond" />
+				<Key word="case" />
+			</KeyWords>
+		
+			<KeyWords name="IterationStatements" bold="false" italic="false" color="Blue">
+				<Key word="do" />
+			</KeyWords>
+		
+			<KeyWords name="ExceptionHandlingStatements" bold="true" italic="false" color="OrangeRed">
+				<Key word="try" />
+				<Key word="catch" />
+				<Key word="finally" />
+				<Key word="throw" />
+			</KeyWords>
+
+			<KeyWords name="NameSpaces" bold="true" italic="false" color="Green">
+				<Key word="require" />
+				<Key word="require-for-syntax" />
+			</KeyWords>
+
+			<KeyWords name="Literals" bold="true" italic="false" color="Black">
+  			<Key word="nil" />
+  			<Key word="#t" />
+  			<Key word="#f" />
+			</KeyWords>
+		</RuleSet>
+  </RuleSets>
+</SyntaxDefinition>

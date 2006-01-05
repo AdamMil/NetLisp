@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+
+<SyntaxDefinition name="Boa" extensions=".boa;.py">
+	<Properties>
+		<Property name="LineComment" value="#"/>
+	</Properties>
+
+	<Digits name="Digits" bold="false" italic="false" color="DarkRed"/>
+
+	<RuleSets>
+		<RuleSet ignorecase="false">
+			<Delimiters>~!%^*()-+=|\#/{}[]:;"'&lt;&gt; , .?</Delimiters>
+		
+			<Span name="LINECOMMENT" bold="false" italic="true" color="DarkGreen" stopateol="true">
+				<Begin>#</Begin>
+			</Span>
+		
+			<Span name="BLOCKCOMMENT" bold="false" italic="false" color="DarkGreen" stopateol="false">
+				<Begin>/*</Begin>
+				<End>*/</End>
+			</Span>
+		
+			<Span name="DOCSTRING" bold="false" italic="false" color="DarkMagenta" stopateol="false">
+				<Begin>"""</Begin>
+				<End>"""</End>
+			</Span>
+
+			<Span name="STRING" bold="false" italic="false" color="DarkMagenta" stopateol="true">
+				<Begin>"</Begin>
+				<End>"</End>
+			</Span>
+
+			<Span name="STRING2" bold="false" italic="false" color="DarkMagenta" stopateol="true">
+				<Begin>'</Begin>
+				<End>'</End>
+			</Span>
+
+			<MarkPrevious bold="true" italic="false" color="MidnightBlue">(</MarkPrevious>
+
+			<KeyWords name="Punctuation" bold="false" italic="false" color="Black">
+				<Key word="?" />
+				<Key word="," />
+				<Key word="." />
+				<Key word="(" />
+				<Key word=")" />
+				<Key word="[" />
+				<Key word="]" />
+				<Key word="{" />
+				<Key word="}" />
+				<Key word="+" />
+				<Key word="-" />
+				<Key word="/" />
+				<Key word="%" />
+				<Key word="*" />
+				<Key word="&lt;" />
+				<Key word="&gt;" />
+				<Key word="^" />
+				<Key word="!" />
+				<Key word="&amp;" />
+				<Key word="|" />
+			</KeyWords>
+		
+			<KeyWords name="AccessKeywords" bold="true" italic="false" color="Black">
+				<Key word="self" />
+			</KeyWords>
+
+			<KeyWords name="DeclarationKeywords" bold="false" italic="false" color="DarkCyan">
+				<Key word="class" />
+				<Key word="def" />
+				<Key word="global" />
+				<Key word="lambda" />
+			</KeyWords>
+
+			<KeyWords name="OperatorKeywords" bold="false" italic="false" color="Blue">
+				<Key word="in" />
+				<Key word="is" />
+				<Key word="not" />
+				<Key word="and" />
+				<Key word="or" />
+				<Key word="del" />
+				<Key word="yield" />
+				<Key word="assert" />
+				<Key word="pass" />
+				<Key word="lock" />
+				<Key word="using" />
+			</KeyWords>
+
+			<KeyWords name="SelectionStatements" bold="false" italic="false" color="Blue">
+				<Key word="if" />
+				<Key word="elif" />
+				<Key word="else" />
+			</KeyWords>
+		
+			<KeyWords name="IterationStatements" bold="false" italic="false" color="Blue">
+				<Key word="for" />
+				<Key word="while" />
+			</KeyWords>
+		
+			<KeyWords name="JumpStatements" bold="false" italic="false" color="Navy">
+				<Key word="break" />
+				<Key word="continue" />
+				<Key word="return" />
+			</KeyWords>
+		
+			<KeyWords name="ExceptionHandlingStatements" bold="true" italic="false" color="OrangeRed">
+				<Key word="try" />
+				<Key word="raise" />
+				<Key word="except" />
+				<Key word="finally" />
+			</KeyWords>
+
+			<KeyWords name="NameSpaces" bold="true" italic="false" color="Green">
+				<Key word="import" />
+				<Key word="from" />
+			</KeyWords>
+
+			<KeyWords name="Literals" bold="true" italic="false" color="Black">
+  			<Key word="null" />
+  			<Key word="true" />
+  			<Key word="false" />
+  			<Key word="True" />
+  			<Key word="False" />
+  			<Key word="None" />
+			</KeyWords>
+		</RuleSet>
+  </RuleSets>
+</SyntaxDefinition>

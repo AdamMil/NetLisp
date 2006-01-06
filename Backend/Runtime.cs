@@ -37,7 +37,12 @@ public sealed class LispOps
   }
 
   public static Snippet CompileRaw(object obj)
-  { return SnippetMaker.Generate(Scripting.AST.CreateCompiled(AST.Create(obj)));
+  { Language old = Options.Current.Language;
+    try
+    { Options.Current.Language = LispLanguage.Instance;
+      return SnippetMaker.Generate(Scripting.AST.CreateCompiled(AST.Create(obj)));
+    }
+    finally { Options.Current.Language = old; }
   }
 
   public static Pair DottedList(object last, params object[] items)
@@ -147,6 +152,8 @@ public sealed class LispOps
     while(pair!=null) { items.Add(pair.Car); pair = pair.Cdr as Pair; }
     return (object[])items.ToArray(typeof(object));
   }
+  
+  [ThreadStatic] public static object LastPtr;
 }
 #endregion
 

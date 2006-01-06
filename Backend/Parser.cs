@@ -392,7 +392,7 @@ returnSyntax = false; // TODO: remove this
         { c = ReadChar();
           if(c=='"') break;
           if(c==0) throw SyntaxError("unterminated string constant");
-          if(c=='\\') c=GetEscapeChar();
+          if(c=='\\') c = GetEscapeChar();
           sb.Append(c);
         }
         value = sb.ToString();

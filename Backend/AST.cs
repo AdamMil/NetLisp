@@ -521,15 +521,7 @@ public sealed class AST
           return SetPos(syntax, new DefineNode(sym.Name, Parse(LispOps.FastCadr(pair))));
           error: throw Ops.SyntaxError("define: must be of form (define name value)");
         }
-        case "vector":
-        { ArrayList items = new ArrayList();
-          while(true)
-          { pair = pair.Cdr as Pair;
-            if(pair==null) break;
-            items.Add(Parse(pair.Car));
-          }
-          return SetPos(syntax, new VectorNode((Node[])items.ToArray(typeof(Node))));
-        }
+        case "vector": return SetPos(syntax, new VectorNode(ParseNodeList(pair.Cdr as Pair)));
         /* (let-values (((a b c) (values 1 2 3))
                         ((x y) (values 4 5 6)))
               (+ a b c x y))
@@ -619,72 +611,54 @@ public sealed class AST
         }
         // (throw [type [objects ...]]) ; type-less throw only allowed within catch form
         case "throw":
-        { Node type=null;
-          ArrayList objs=null;
+        { Node type = null;
+          Node[] objs = null;
 
           pair = pair.Cdr as Pair;
           if(pair!=null)
           { type = Parse(pair.Car);
-            pair = pair.Cdr as Pair;
-            if(pair!=null)
-            { objs = new ArrayList();
-              do
-              { objs.Add(Parse(pair.Car));
-                pair = pair.Cdr as Pair;
-              } while(pair!=null);
-            }
+            objs = ParseNodeList(pair.Cdr as Pair);
           }
 
-          return SetPos(syntax, new ThrowNode(type, objs==null ? null : (Node[])objs.ToArray(typeof(Node))));
+          return SetPos(syntax, new ThrowNode(type, objs));
         }
         // (.member object member-name)
         case ".member":
         { int length = Builtins.length.core(pair);
-          if(length!=3) throw Ops.SyntaxError(".member: must be of form (.member obj-form names-form)");
+          if(length!=3) throw Ops.SyntaxError(".member: must be of form (.member obj-form name-form)");
           pair = (Pair)pair.Cdr;
           return SetPos(syntax, new MemberNode(Parse(pair.Car), Parse(LispOps.FastCadr(pair))));
         }
       }
 
     Node func = Parse(pair.Car);
-    ArrayList args = new ArrayList();
-    while(true)
-    { pair = pair.Cdr as Pair;
-      if(pair==null) break;
-      args.Add(Parse(pair.Car));
-    }
+    Node[] args = ParseNodeList(pair.Cdr as Pair);
     // TODO: move this optimization into Scripting
     if(Options.Current.Optimize && func is LambdaNode) // optimization: transform ((lambda (a) ...) x) into (let ((a x)) ...)
     { LambdaNode fl = (LambdaNode)func;
       string[] names = new string[fl.Parameters.Length];
       for(int i=0; i<names.Length; i++) names[i] = fl.Parameters[i].Name.String;
       int positional = fl.Parameters.Length-(fl.HasList ? 1 : 0);
-      Ops.CheckArity("<unnamed lambda>", args.Count, positional, fl.HasList ? -1 : positional);
+      Ops.CheckArity("<unnamed lambda>", args.Length, positional, fl.HasList ? -1 : positional);
 
       Node[] inits = new Node[names.Length];
-      for(int i=0; i<positional; i++) inits[i] = (Node)args[i];
+      for(int i=0; i<positional; i++) inits[i] = args[i];
       if(fl.HasList)
-      { if(args.Count==positional) inits[positional] = new LiteralNode(null);
+      { if(args.Length==positional) inits[positional] = new LiteralNode(null);
         else
-        { Node[] elems = new Node[args.Count-positional];
-          for(int i=positional; i<args.Count; i++) elems[i-positional] = (Node)args[i];
+        { Node[] elems = new Node[args.Length-positional];
+          for(int i=positional; i<args.Length; i++) elems[i-positional] = args[i];
           inits[positional] = new ListNode(elems, null);
         }
       }
       return new LocalBindNode(names, inits, fl.Body);
     }
-    else return SetPos(syntax, new CallNode(func, (Node[])args.ToArray(typeof(Node))));
+    else return SetPos(syntax, new CallNode(func, args));
   }
 
   static Node ParseBody(Pair start)
-  { if(start==null) return null;
-    ArrayList items = new ArrayList();
-    while(start!=null)
-    { items.Add(Parse(start.Car));
-      start = start.Cdr as Pair;
-    }
-    if(items.Count==1) return (Node)items[0];
-    return new BodyNode((Node[])items.ToArray(typeof(Node)));
+  { Node[] list = ParseNodeList(start);
+    return list==null ? null : list.Length==1 ? list[0] : new BodyNode(list);
   }
 
   static string[] ParseLambdaList(object obj, out bool hasList)
@@ -711,6 +685,16 @@ public sealed class AST
     return (string[])names.ToArray(typeof(string));
 
     error: throw Ops.SyntaxError("lambda bindings must be of the form: symbol | (symbol... [ . symbol])");
+  }
+
+  static Node[] ParseNodeList(Pair start)
+  { if(start==null) return null;
+    ArrayList items = new ArrayList();
+    while(start!=null)
+    { items.Add(Parse(start.Car));
+      start = start.Cdr as Pair;
+    }
+    return (Node[])items.ToArray(typeof(Node));
   }
 
   static Node Quote(object obj)
@@ -743,32 +727,48 @@ public sealed class AST
 
 #region DefineNode
 public sealed class DefineNode : Node
-{ public DefineNode(string name, Node value) { Define = new Scripting.DefineNode(name, value); }
+{ public DefineNode(string name, Node value) { Set = new SetNode(name, value, SetType.Set); }
 
   public override void Emit(Scripting.CodeGenerator cg, ref Type etype)
-  { Define.EmitVoid(cg);
+  { Set.EmitVoid(cg);
     if(etype!=typeof(void))
-    { cg.EmitConstantObject(Symbol.Get(Define.Name.String));
+    { cg.EmitConstantObject(Symbol.Get(((VariableNode)Set.LHS[0]).Name.String));
       etype = typeof(Symbol);
     }
     TailReturn(cg);
   }
 
   public override object Evaluate()
-  { Define.Evaluate();
-    return Symbol.Get(Define.Name.String);
+  { Set.Evaluate();
+    return Symbol.Get(((VariableNode)Set.LHS[0]).Name.String);
   }
 
   public override Type GetNodeType() { return typeof(Symbol); }
 
-  public override void MarkTail(bool tail) { Tail=tail; Define.MarkTail(false); }
+  public override void MarkTail(bool tail) { Tail=tail; Set.MarkTail(false); }
 
   public override void Walk(IWalker w)
-  { if(w.Walk(this)) Define.Walk(w);
+  { if(w.Walk(this)) Set.Walk(w);
     w.PostWalk(this);
   }
 
-  public readonly Scripting.DefineNode Define;
+  public readonly SetNode Set;
+}
+#endregion
+
+#region LastNode
+public sealed class LastNode : Node
+{ public override void Emit(Scripting.CodeGenerator cg, ref Type etype)
+  { if(etype!=typeof(void))
+    { cg.EmitFieldGet(typeof(LispOps), "LastPtr");
+      etype = typeof(object);
+      TailReturn(cg);
+    }
+  }
+
+  public override object Evaluate() { return LispOps.LastPtr; }
+  public override Type GetNodeType() { return typeof(object); }
+  public override void Walk(IWalker w) { if(w.Walk(this)) w.PostWalk(this); }
 }
 #endregion
 
@@ -812,6 +812,22 @@ public sealed class ListNode : Node
 
   public readonly Node[] Items;
   public readonly Node Dot;
+}
+#endregion
+
+#region MemberNode
+public sealed class MemberNode : Scripting.MemberNode
+{ public MemberNode(Node value, Node members) : base(value, members) { }
+
+  protected override void HandleThisPtr(Scripting.CodeGenerator cg)
+  { cg.ILG.Emit(OpCodes.Dup);
+    cg.EmitFieldSet(typeof(LispOps), "LastPtr");
+  }
+
+  protected override void HandleThisPtr(Scripting.CodeGenerator cg, Slot slot)
+  { slot.EmitGet(cg);
+    cg.EmitFieldSet(typeof(LispOps), "LastPtr");
+  }
 }
 #endregion
 

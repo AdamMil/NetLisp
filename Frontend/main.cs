@@ -61,7 +61,7 @@ public class App
 
   static int Main(string[] args)
   { Options.Current.Debug = true;
-    Options.Current.Optimize = true;
+    Options.Current.Optimize = OptimizeType.Speed;
     Options.Current.Language = LispLanguage.Instance;
 
     string filename=null, outfile=null;
@@ -86,7 +86,11 @@ public class App
             case "debug": Options.Current.Debug=IsTrue(value); break;
             case "?": case "help": case "-help": Usage(); return 0;
             // TODO: implement this. case "lib": sys.path.insert(0, value); break;
-            case "o": case "optimize": Options.Current.Optimize=IsTrue(value); break;
+            case "o": case "optimize":
+              if(value=="speed") Options.Current.Optimize = OptimizeType.Speed;
+              else if(value=="size") Options.Current.Optimize = OptimizeType.Size;
+              else Options.Current.Optimize = value!="none" && IsTrue(value) ? OptimizeType.Speed : OptimizeType.None;
+              break;
             case "out": outfile=value; break;
             case "snippets": WriteSnippets=IsTrue(value); break;
             case "t": case "target":

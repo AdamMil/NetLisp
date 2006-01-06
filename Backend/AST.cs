@@ -41,19 +41,23 @@ public sealed class LispLanguage : Language
   { ArrayList cfunc = new ArrayList(new string[] {
       "eq?", "eqv?", "equal?", "null?", "pair?", "char?", "symbol?", "string?", "procedure?", "vector?", "values",
       "not", "string-null?", "string-length", "vector-length", "car", "cdr", "promise?",
-      "char-upcase", "char-downcase", "->string", "list",
-      "+", "-", "*", "/", "//", "%", "!=", "<", "<=", ">", ">=" });
+      "char-upcase", "char-downcase", "->string", "list" });
 
-    string[] arr = new string[]
+    string[] mapped = new string[]
     { "bitnot", "~", "bitand", "&", "bitor", "|", "bitxor", "^", "=", "==", "eq?", "===", "eqv?", "==",
       "expt", "**", "lshift", "<<", "rshift", ">>", "exptmod", "**%", "not", "!", "string-ref", "string[]",
       "vector-ref", "object[]", "vector-set!", "object[]="
     };
+    string[] straight = new string[] { "+", "-", "*", "/", "//", "%", "!=", "<", "<=", ">", ">=" };
 
-    ops = new SortedList(arr.Length/2);
-    for(int i=0; i<arr.Length; i+=2)
-    { ops[arr[i]] = arr[i+1];
-      cfunc.Add(arr[i]);
+    ops = new SortedList(mapped.Length/2+straight.Length);
+    for(int i=0; i<mapped.Length; i+=2)
+    { ops[mapped[i]] = mapped[i+1];
+      cfunc.Add(mapped[i]);
+    }
+    foreach(string s in straight)
+    { ops[s] = s;
+      cfunc.Add(s);
     }
 
     cfunc.Sort();
@@ -526,6 +530,9 @@ public sealed class AST
                         ((x y) (values 4 5 6)))
               (+ a b c x y))
         */
+        case "values":
+          if(Options.Current.OptimizeAny) return SetPos(syntax, new ValuesNode(ParseNodeList(pair.Cdr as Pair)));
+          break;
         case "let-values":
         { if(Builtins.length.core(pair)<3) goto error;
           pair = (Pair)pair.Cdr;
@@ -634,7 +641,7 @@ public sealed class AST
     Node func = Parse(pair.Car);
     Node[] args = ParseNodeList(pair.Cdr as Pair);
     // TODO: move this optimization into Scripting
-    if(Options.Current.Optimize && func is LambdaNode) // optimization: transform ((lambda (a) ...) x) into (let ((a x)) ...)
+    if(Options.Current.OptimizeAny && func is LambdaNode) // optimization: transform ((lambda (a) ...) x) into (let ((a x)) ...)
     { LambdaNode fl = (LambdaNode)func;
       string[] names = new string[fl.Parameters.Length];
       for(int i=0; i<names.Length; i++) names[i] = fl.Parameters[i].Name.String;

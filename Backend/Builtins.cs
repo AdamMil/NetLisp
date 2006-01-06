@@ -484,7 +484,7 @@ public sealed class Builtins
   { public dotMember() : base(".member", 2, 2) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      return Ops.GetSlot(args[0], Ops.ExpectString(args[1]));
+      return Ops.GetSlot(LispOps.LastPtr=args[0], Ops.ExpectString(args[1]));
     }
   }
   #endregion

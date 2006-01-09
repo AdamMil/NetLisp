@@ -225,12 +225,12 @@ public sealed class LispLanguage : Language
           case "procedure?": type=typeof(IProcedure); break;
           case "vector?": type=typeof(object[]); break;
           case "promise?": type=typeof(Promise); break;
-          case "not": cg.EmitCall(typeof(Ops), "IsTrue"); break;
+          case "not": cg.EmitIsTrue(); break;
           case "string-null?": cg.EmitPropGet(typeof(string), "Length"); break;
         }
         if(etype==typeof(bool))
         { if(type!=null) cg.ILG.Emit(OpCodes.Isinst, type);
-          else etype=typeof(CodeGenerator.negbool);
+          else etype=typeof(CodeGenerator.negbool); // for 'not', above
         }
         else
         { if(type!=null) cg.ILG.Emit(OpCodes.Isinst, type);

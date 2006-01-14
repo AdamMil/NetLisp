@@ -215,7 +215,7 @@ public sealed class LispLanguage : Language
       { node.CheckArity(1);
         if(etype==typeof(void)) { cg.EmitVoids(args); return true; }
         Type type=null;
-        if(name=="string-null?") cg.EmitString(args[0]);
+        if(name=="string-null?") args[0].EmitString(cg);
         else args[0].Emit(cg);
         switch(name)
         { case "pair?": type=typeof(Pair); break;
@@ -243,11 +243,11 @@ public sealed class LispLanguage : Language
         node.CheckArity(1);
         if(etype==typeof(void)) { cg.EmitVoids(args); return true; }
         if(name=="string-length")
-        { cg.EmitString(args[0]);
+        { args[0].EmitString(cg);
           cg.EmitPropGet(typeof(string), "Length");
         }
         else
-        { cg.EmitTypedNode(args[0], typeof(object[]));
+        { args[0].EmitTyped(cg, typeof(object[]));
           cg.EmitPropGet(typeof(object[]), "Length");
         }
         if(etype!=typeof(int))
@@ -264,7 +264,7 @@ public sealed class LispLanguage : Language
       case "char-upcase": case "char-downcase":
         node.CheckArity(1);
         if(etype==typeof(void)) { cg.EmitVoids(args); return true; }
-        cg.EmitTypedNode(args[0], typeof(char));
+        args[0].EmitTyped(cg, typeof(char));
         cg.EmitCall(typeof(char), name=="char-upcase" ? "ToUpper" : "ToLower", typeof(char));
         if(etype!=typeof(char))
         { cg.ILG.Emit(OpCodes.Box, typeof(char));
@@ -274,7 +274,7 @@ public sealed class LispLanguage : Language
       case "#%delay":
         node.CheckArity(1);
         if(etype==typeof(void)) { cg.EmitVoids(args); return true; }
-        cg.EmitTypedNode(args[0], typeof(IProcedure));
+        args[0].EmitTyped(cg, typeof(IProcedure));
         cg.EmitNew(typeof(Promise), typeof(IProcedure));
         etype = typeof(Promise);
         return true;
@@ -438,7 +438,7 @@ public sealed class AST
       if(name==".last") return new LastNode();
       int pos = name.IndexOf('.', 1);
       Node var = new VariableNode(pos==-1 ? name : name.Substring(0, pos));
-      return pos==-1 ? var : SetPos(syntax, new MemberNode(var, new LiteralNode(name.Substring(pos+1))));
+      return pos==-1 ? var : SetPos(syntax, new PropMemberNode(var, new LiteralNode(name.Substring(pos+1))));
     }
 
     Pair pair = obj as Pair;
@@ -624,7 +624,7 @@ public sealed class AST
           pair = pair.Cdr as Pair;
           if(pair!=null)
           { type = Parse(pair.Car);
-            objs = ParseNodeList(pair.Cdr as Pair);
+            objs = ParseNodeList(pair.Cdr as Pair, true);
           }
 
           return SetPos(syntax, new ThrowNode(type, objs));
@@ -634,7 +634,15 @@ public sealed class AST
         { int length = Builtins.length.core(pair);
           if(length!=3) throw Ops.SyntaxError(".member: must be of form (.member obj-form name-form)");
           pair = (Pair)pair.Cdr;
-          return SetPos(syntax, new MemberNode(Parse(pair.Car), Parse(LispOps.FastCadr(pair))));
+          return SetPos(syntax, new PropMemberNode(Parse(pair.Car), Parse(LispOps.FastCadr(pair))));
+        }
+        // (.pmember object member-name a0 a1 ...)
+        case ".pmember":
+        { int length = Builtins.length.core(pair);
+          if(length<3) throw Ops.SyntaxError(".pmember: must be of form (.member obj-form name-form arg-form ...)");
+          pair = (Pair)pair.Cdr;
+          return SetPos(syntax, new PropertyNode(Parse(pair.Car), Parse(LispOps.FastCadr(pair)),
+                                                 ParseNodeList(LispOps.FastCddr(pair) as Pair)));
         }
       }
 
@@ -664,7 +672,7 @@ public sealed class AST
   }
 
   static Node ParseBody(Pair start)
-  { Node[] list = ParseNodeList(start);
+  { Node[] list = ParseNodeList(start, true);
     return list==null ? null : list.Length==1 ? list[0] : new BodyNode(list);
   }
 
@@ -694,8 +702,9 @@ public sealed class AST
     error: throw Ops.SyntaxError("lambda bindings must be of the form: symbol | (symbol... [ . symbol])");
   }
 
-  static Node[] ParseNodeList(Pair start)
-  { if(start==null) return null;
+  static Node[] ParseNodeList(Pair start) { return ParseNodeList(start, false); }
+  static Node[] ParseNodeList(Pair start, bool nullReturn)
+  { if(start==null) return nullReturn ? null : new Node[0];
     ArrayList items = new ArrayList();
     while(start!=null)
     { items.Add(Parse(start.Car));
@@ -763,22 +772,6 @@ public sealed class DefineNode : Node
 }
 #endregion
 
-#region LastNode
-public sealed class LastNode : Node
-{ public override void Emit(Scripting.CodeGenerator cg, ref Type etype)
-  { if(etype!=typeof(void))
-    { cg.EmitFieldGet(typeof(LispOps), "LastPtr");
-      etype = typeof(object);
-      TailReturn(cg);
-    }
-  }
-
-  public override object Evaluate() { return LispOps.LastPtr; }
-  public override Type GetNodeType() { return typeof(object); }
-  public override void Walk(IWalker w) { if(w.Walk(this)) w.PostWalk(this); }
-}
-#endregion
-
 #region ListNode
 public sealed class ListNode : Node
 { public ListNode(Node[] items, Node dot) { Items=items; Dot=dot; }
@@ -819,22 +812,6 @@ public sealed class ListNode : Node
 
   public readonly Node[] Items;
   public readonly Node Dot;
-}
-#endregion
-
-#region MemberNode
-public sealed class MemberNode : Scripting.MemberNode
-{ public MemberNode(Node value, Node members) : base(value, members) { }
-
-  protected override void HandleThisPtr(Scripting.CodeGenerator cg)
-  { cg.ILG.Emit(OpCodes.Dup);
-    cg.EmitFieldSet(typeof(LispOps), "LastPtr");
-  }
-
-  protected override void HandleThisPtr(Scripting.CodeGenerator cg, Slot slot)
-  { slot.EmitGet(cg);
-    cg.EmitFieldSet(typeof(LispOps), "LastPtr");
-  }
 }
 #endregion
 

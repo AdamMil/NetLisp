@@ -95,7 +95,7 @@ public sealed class CodeGenerator : Scripting.CodeGenerator
     }
   }
 
-  public void EmitPair(Node node) { EmitTypedNode(node, typeof(Pair)); }
+  public void EmitPair(Node node) { node.EmitTyped(this, typeof(Pair)); }
 }
 
 }

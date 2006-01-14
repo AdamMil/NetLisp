@@ -129,12 +129,12 @@ returnSyntax = false; // TODO: remove this
       default: throw SyntaxError("unexpected token: "+token);
     }
 
-    while(token==Token.LCurly) // obj{Prop a0 a1 ...} -> ((.member obj "Prop") .last a0 a1 ...)
+    while(token==Token.LCurly) // obj{Prop a0 a1 ...} -> (.pmember obj "Prop" a0 a1 ...)
     { NextToken();
       Expect(Token.Symbol);
 
-      Pair tail = new Pair(dotLastSym, null);
-      ret = new Pair(new Pair(memberSym, new Pair(ret, new Pair((string)value, null))), tail);
+      Pair tail = new Pair((string)value, null);
+      ret = new Pair(memberSym, tail);
       NextToken();
       while(token!=Token.RCurly)
       { Pair next = new Pair(ParseOne(returnSyntax), null);

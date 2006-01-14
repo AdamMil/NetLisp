@@ -97,7 +97,6 @@ namespace NetLisp.Backend
       (list 'install-expander name body))))
 ", RunAt=RunAt.Both)]
 
-
 [LispCode(@"
 (install-expander 'quote (lambda (x e) x))
 
@@ -484,7 +483,7 @@ public sealed class Builtins
   { public dotMember() : base(".member", 2, 2) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      return Ops.GetSlot(LispOps.LastPtr=args[0], Ops.ExpectString(args[1]));
+      return Ops.GetSlot(Ops.LastPtr=args[0], Ops.ExpectString(args[1]));
     }
   }
   #endregion
@@ -1286,7 +1285,7 @@ public sealed class Builtins
           args[0] = p.Car;
           p = p.Cdr as Pair;
           Pair next = new Pair(func.Call(args), null);
-          if(head==null) head=tail=next;
+          if(head==null) head = tail = next;
           else { tail.Cdr=next; tail=next; }
         }
         return head;
@@ -1306,7 +1305,7 @@ public sealed class Builtins
             pairs[i] = pairs[i].Cdr as Pair;
           }
           Pair next = new Pair(func.Call(args), null);
-          if(head==null) head=tail=next;
+          if(head==null) head = tail = next;
           else { tail.Cdr=next; tail=next; }
         }
       }
@@ -1319,8 +1318,8 @@ public sealed class Builtins
   { public memq() : base("memq", 2, 2) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      object obj=args[0];
-      Pair  list=LispOps.ExpectList(args[1]);
+      object obj = args[0];
+      Pair  list = LispOps.ExpectList(args[1]);
       while(list!=null)
       { if(list.Car==obj) return list;
         list = list.Cdr as Pair;
@@ -1334,8 +1333,8 @@ public sealed class Builtins
   { public memv() : base("memv", 2, 2) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      object obj=args[0];
-      Pair  list=LispOps.ExpectList(args[1]);
+      object obj = args[0];
+      Pair  list = LispOps.ExpectList(args[1]);
       while(list!=null)
       { if(Ops.AreEqual(obj, list.Car)) return list;
         list = list.Cdr as Pair;
@@ -1349,8 +1348,8 @@ public sealed class Builtins
   { public member() : base("member", 2, 3) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      object obj=args[0];
-      Pair  list=LispOps.ExpectList(args[1]);
+      object obj = args[0];
+      Pair  list = LispOps.ExpectList(args[1]);
       if(args.Length==2)
         while(list!=null)
         { if(LispOps.EqualP(obj, list.Car)) return list;
@@ -1394,7 +1393,7 @@ public sealed class Builtins
   { public reverseN() : base("reverse!", 1, 1) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      Pair pair=LispOps.ExpectList(args[0]);
+      Pair pair = LispOps.ExpectList(args[0]);
       if(pair==null) return null;
       Pair next = pair.Cdr as Pair;
       if(next==null) return pair;

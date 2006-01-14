@@ -152,8 +152,6 @@ public sealed class LispOps
     while(pair!=null) { items.Add(pair.Car); pair = pair.Cdr as Pair; }
     return (object[])items.ToArray(typeof(object));
   }
-  
-  [ThreadStatic] public static object LastPtr;
 }
 #endregion
 

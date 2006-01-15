@@ -493,28 +493,31 @@ public sealed class AST
                                                ParseBody((Pair)pair.Cdr)));
         }
         case "set!":
-        { if(Builtins.length.core(pair)<3) goto error;
-          ArrayList names=new ArrayList(), values=new ArrayList();
-          pair = (Pair)pair.Cdr;
-          do
-          { sym = pair.Car as Symbol;
-            if(sym==null) goto error;
-            names.Add(new Name(sym.Name));
-            pair = pair.Cdr as Pair;
-            if(pair==null) goto error;
-            values.Add(Parse(pair.Car));
-            pair = pair.Cdr as Pair;
-          } while(pair!=null);
+        { if(Builtins.length.core(pair)>=3)
+            using(CachedArray names=CachedArray.Alloc(), values=CachedArray.Alloc())
+            { pair = (Pair)pair.Cdr;
+              do
+              { sym = pair.Car as Symbol;
+                if(sym==null) goto error;
+                names.Add(new Name(sym.Name));
+                pair = pair.Cdr as Pair;
+                if(pair==null) goto error;
+                values.Add(Parse(pair.Car));
+                pair = pair.Cdr as Pair;
+              } while(pair!=null);
 
-          Node ret;
-          if(names.Count==1) ret = new SetNode(new VariableNode((Name)names[0]), (Node)values[0]);
-          else
-          { Node[] sets = new Node[names.Count];
-            for(int i=0; i<names.Count; i++) sets[i] = new SetNode(new VariableNode((Name)names[i]), (Node)values[i]);
-            ret = new BodyNode(sets);
-          }
-          return SetPos(syntax, ret);
-          error: throw Ops.SyntaxError("set!: must be of form (set! symbol form [symbol form] ...)");
+              Node ret;
+              if(names.Count==1) ret = new SetNode(new VariableNode((Name)names[0]), (Node)values[0]);
+              else
+              { Node[] sets = new Node[names.Count];
+                for(int i=0; i<names.Count; i++)
+                  sets[i] = new SetNode(new VariableNode((Name)names[i]), (Node)values[i]);
+                ret = new BodyNode(sets);
+              }
+              return SetPos(syntax, ret);
+              error:;
+            }
+          throw Ops.SyntaxError("set!: must be of form (set! symbol form [symbol form] ...)");
         }
         case "define":
         { int length = Builtins.length.core(pair);
@@ -541,27 +544,28 @@ public sealed class AST
           { if(pair.Car==null) return ParseBody((Pair)pair.Cdr);
             goto error;
           }
-          ArrayList names=new ArrayList(), inits=new ArrayList();
-          do
-          { Pair binding = bindings.Car as Pair;
-            if(binding==null) goto bindingError;
-            Pair namePair = binding.Car as Pair;
-            if(namePair==null) goto bindingError;
-            Name[] narr = new Name[Builtins.length.core(namePair)];
-            for(int i=0; i<narr.Length; namePair=namePair.Cdr as Pair,i++)
-            { sym = namePair.Car as Symbol;
-              if(sym==null) goto bindingError;
-              narr[i] = new Name(sym.Name);
-            }
-            names.Add(narr);
-            inits.Add(Parse(LispOps.FastCadr(binding)));
-            bindings = bindings.Cdr as Pair;
-          } while(bindings!=null);
+          using(CachedArray names=CachedArray.Alloc(), inits=CachedArray.Alloc())
+          { do
+            { Pair binding = bindings.Car as Pair;
+              if(binding==null) goto bindingError;
+              Pair namePair = binding.Car as Pair;
+              if(namePair==null) goto bindingError;
+              Name[] narr = new Name[Builtins.length.core(namePair)];
+              for(int i=0; i<narr.Length; namePair=namePair.Cdr as Pair,i++)
+              { sym = namePair.Car as Symbol;
+                if(sym==null) goto bindingError;
+                narr[i] = new Name(sym.Name);
+              }
+              names.Add(narr);
+              inits.Add(Parse(LispOps.FastCadr(binding)));
+              bindings = bindings.Cdr as Pair;
+            } while(bindings!=null);
 
-          return new ValueBindNode((Name[][])names.ToArray(typeof(Name[])),
-                                   (Node[])inits.ToArray(typeof(Node)), ParseBody((Pair)pair.Cdr));
+            return new ValueBindNode((Name[][])names.ToArray(typeof(Name[])),
+                                    (Node[])inits.ToArray(typeof(Node)), ParseBody((Pair)pair.Cdr));
+            bindingError: throw Ops.SyntaxError("let-value: bindings must be of form (((symbol ...) form) ...)");
+          }
           error: throw Ops.SyntaxError("let-value: must be of form (let-values bindings form ...)");
-          bindingError: throw Ops.SyntaxError("let-value: bindings must be of form (((symbol ...) form) ...)");
         }
         /* (try
             (begin form...)
@@ -574,7 +578,7 @@ public sealed class AST
         { if(Builtins.length.core(pair)<3) goto error;
           pair = (Pair)pair.Cdr;
           Node final=null, body=Parse(pair.Car);
-          ArrayList excepts=null, etypes=null;
+          CachedArray excepts=null, etypes=null;
 
           while((pair=(Pair)pair.Cdr) != null)
           { Pair form = pair.Car as Pair;
@@ -582,7 +586,7 @@ public sealed class AST
             sym = form.Car as Symbol;
             if(sym==null) goto error;
             if(sym.Name=="catch")
-            { if(excepts==null) excepts=new ArrayList();
+            { if(excepts==null) excepts = CachedArray.Alloc();
               string evar;
               if(Builtins.length.core(form)<3) goto catchError;
               form = (Pair)form.Cdr;
@@ -594,7 +598,7 @@ public sealed class AST
                 evar = sym.Name;
                 epair = (Pair)epair.Cdr;
                 if(epair!=null)
-                { if(etypes==null) etypes = new ArrayList();
+                { if(etypes==null) etypes = CachedArray.Alloc();
                   do etypes.Add(Parse(epair.Car)); while((epair=(Pair)epair.Cdr) != null);
                 }
               }
@@ -611,8 +615,11 @@ public sealed class AST
             else goto error;
           }
 
+          etypes.Dispose();
           if(excepts==null && final==null) goto error;
-          return new TryNode(body, final, excepts==null ? null : (Except[])excepts.ToArray(typeof(Except)));
+          Except[] exceptArr = excepts==null ? null : (Except[])excepts.ToArray(typeof(Except));
+          if(excepts!=null) excepts.Dispose();
+          return new TryNode(body, final, exceptArr);
           error: throw Ops.SyntaxError("try form expects one body form followed by catch forms and/or an optional finally form");
           catchError: throw Ops.SyntaxError("catch form should be of the form: (catch ([e [type ...]]) forms...)");
         }
@@ -682,53 +689,56 @@ public sealed class AST
     if(sym!=null) { hasList=true; return new string[] { sym.Name }; }
 
     Pair list = (Pair)obj;
-    ArrayList names = new ArrayList();
-    while(list!=null)
-    { sym = list.Car as Symbol;
-      if(sym==null) goto error;
-      names.Add(sym.Name);
-      object next = list.Cdr;
-      list = next as Pair;
-      if(list==null && next!=null)
-      { sym = next as Symbol;
+    using(CachedArray names = CachedArray.Alloc())
+    { while(list!=null)
+      { sym = list.Car as Symbol;
         if(sym==null) goto error;
         names.Add(sym.Name);
-        hasList=true;
-        break;
+        object next = list.Cdr;
+        list = next as Pair;
+        if(list==null && next!=null)
+        { sym = next as Symbol;
+          if(sym==null) goto error;
+          names.Add(sym.Name);
+          hasList=true;
+          break;
+        }
       }
-    }
-    return (string[])names.ToArray(typeof(string));
+      return (string[])names.ToArray(typeof(string));
 
-    error: throw Ops.SyntaxError("lambda bindings must be of the form: symbol | (symbol... [ . symbol])");
+      error: throw Ops.SyntaxError("lambda bindings must be of the form: symbol | (symbol... [ . symbol])");
+    }
   }
 
   static Node[] ParseNodeList(Pair start) { return ParseNodeList(start, false); }
   static Node[] ParseNodeList(Pair start, bool nullReturn)
   { if(start==null) return nullReturn ? null : new Node[0];
-    ArrayList items = new ArrayList();
-    while(start!=null)
-    { items.Add(Parse(start.Car));
-      start = start.Cdr as Pair;
+    using(CachedArray items = CachedArray.Alloc())
+    { while(start!=null)
+      { items.Add(Parse(start.Car));
+        start = start.Cdr as Pair;
+      }
+      return (Node[])items.ToArray(typeof(Node));
     }
-    return (Node[])items.ToArray(typeof(Node));
   }
 
   static Node Quote(object obj)
   { Pair pair = obj as Pair;
     if(pair==null) return new LiteralNode(obj);
 
-    ArrayList items = new ArrayList();
-    Node dot=null;
-    while(true)
-    { items.Add(Quote(pair.Car));
-      object next = pair.Cdr;
-      pair = next as Pair;
-      if(pair==null)
-      { if(next!=null) dot = Quote(next);
-        break;
+    using(CachedArray items = CachedArray.Alloc())
+    { Node dot = null;
+      while(true)
+      { items.Add(Quote(pair.Car));
+        object next = pair.Cdr;
+        pair = next as Pair;
+        if(pair==null)
+        { if(next!=null) dot = Quote(next);
+          break;
+        }
       }
+      return new ListNode((Node[])items.ToArray(typeof(Node)), dot);
     }
-    return new ListNode((Node[])items.ToArray(typeof(Node)), dot);
   }
 
   static Node SetPos(SyntaxObject syntax, Node node)

@@ -90,17 +90,17 @@ returnSyntax = false; // TODO: remove this
       { Token end = token==Token.LParen ? Token.RParen : Token.RBracket;
         if(NextToken()==end) { NextToken(); ret=null; }
         else
-        { ArrayList items = new ArrayList();
-          object dot = null;
-          do
-          { items.Add(ParseOne(returnSyntax));
-            if(TryEat(Token.Period)) { dot=ParseOne(returnSyntax); break; }
+          using(CachedArray items = CachedArray.Alloc())
+          { object dot = null;
+            do
+            { items.Add(ParseOne(returnSyntax));
+              if(TryEat(Token.Period)) { dot=ParseOne(returnSyntax); break; }
+            }
+            while(token!=end && token!=Token.EOF);
+            if(items.Count==0 && dot!=null) throw SyntaxError("malformed dotted list");
+            Eat(end);
+            ret = LispOps.DottedList(dot, (object[])items.ToArray(typeof(object)));
           }
-          while(token!=end && token!=Token.EOF);
-          if(items.Count==0 && dot!=null) throw SyntaxError("malformed dotted list");
-          Eat(end);
-          ret = LispOps.DottedList(dot, (object[])items.ToArray(typeof(object)));
-        }
         break;
       }
       case Token.Symbol:
@@ -119,12 +119,12 @@ returnSyntax = false; // TODO: remove this
       case Token.Quote: NextToken(); ret = LispOps.List(quoteSym, ParseOne(returnSyntax)); break;
       case Token.Splice: NextToken(); ret = LispOps.List(spliceSym, ParseOne(returnSyntax)); break;
       case Token.Vector:
-      { ArrayList items = new ArrayList();
-        NextToken();
-        while(!TryEat(Token.RParen)) items.Add(ParseOne(returnSyntax));
-        ret = LispOps.List2(vectorSym, (object[])items.ToArray(typeof(object)));
+        using(CachedArray items = CachedArray.Alloc())
+        { NextToken();
+          while(!TryEat(Token.RParen)) items.Add(ParseOne(returnSyntax));
+          ret = LispOps.List2(vectorSym, (object[])items.ToArray(typeof(object)));
+        }
         break;
-      }
       case Token.EOF: return EOF;
       default: throw SyntaxError("unexpected token: "+token);
     }

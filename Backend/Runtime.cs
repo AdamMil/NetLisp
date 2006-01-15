@@ -112,28 +112,28 @@ public sealed class LispOps
     }
     if(bindings==null) mc.Import(top, null, null);
     else
-    { ArrayList names=new ArrayList(), asNames=new ArrayList();
-      do
-      { string name = bindings.Car as string, asName;
-        if(name!=null) asName=name;
-        else
-        { Pair pair = bindings.Car as Pair;
-          if(pair!=null)
-          { name = pair.Car as string;
-            asName = pair.Cdr as string;
+      using(CachedArray names=CachedArray.Alloc(), asNames=CachedArray.Alloc())
+      { do
+        { string name = bindings.Car as string, asName;
+          if(name!=null) asName=name;
+          else
+          { Pair pair = bindings.Car as Pair;
+            if(pair!=null)
+            { name = pair.Car as string;
+              asName = pair.Cdr as string;
+            }
+            else asName=null;
+            if(name==null || asName==null)
+              throw new ArgumentException("export list should be composed of strings and (name . asName) pairs");
           }
-          else asName=null;
-          if(name==null || asName==null)
-            throw new ArgumentException("export list should be composed of strings and (name . asName) pairs");
-        }
-        names.Add(name);
-        asNames.Add(asName);
+          names.Add(name);
+          asNames.Add(asName);
 
-        bindings = bindings.Cdr as Pair;
-      } while(bindings!=null);
+          bindings = bindings.Cdr as Pair;
+        } while(bindings!=null);
 
-      mc.Import(top, (string[])names.ToArray(typeof(string)), (string[])asNames.ToArray(typeof(string)));
-    }
+        mc.Import(top, (string[])names.ToArray(typeof(string)), (string[])asNames.ToArray(typeof(string)));
+      }
   }
 
   public static Pair List(params object[] items) { return List(items, 0, items.Length); }
@@ -148,9 +148,10 @@ public sealed class LispOps
 
   public static object[] ListToArray(Pair pair)
   { if(pair==null) return Ops.EmptyArray;
-    ArrayList items = new ArrayList();
-    while(pair!=null) { items.Add(pair.Car); pair = pair.Cdr as Pair; }
-    return (object[])items.ToArray(typeof(object));
+    using(CachedArray items = CachedArray.Alloc())
+    { while(pair!=null) { items.Add(pair.Car); pair = pair.Cdr as Pair; }
+      return (object[])items.ToArray(typeof(object));
+    }
   }
 }
 #endregion

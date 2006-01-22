@@ -827,7 +827,7 @@ public sealed class Srfi1
   { public fold() : base("fold", 3, -1) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      IProcedure kons=Ops.ExpectProcedure(args[0]);
+      IProcedure kons = Ops.ExpectProcedure(args[0]);
       object ans=args[1];
       bool realloc=kons.NeedsFreshArgs;
 
@@ -1195,8 +1195,8 @@ public sealed class Srfi1
   { public pairFold() : base("pair-fold", 3, -1) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      IProcedure kons=Ops.ExpectProcedure(args[0]);
-      object ans=args[1];
+      IProcedure kons = Ops.ExpectProcedure(args[0]);
+      object ans = args[1];
       bool realloc = kons.NeedsFreshArgs;
 
       if(args.Length==3)
@@ -1242,8 +1242,8 @@ public sealed class Srfi1
   { public pairFoldRight() : base("pair-fold-right", 3, -1) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      IProcedure kons=Ops.ExpectProcedure(args[0]);
-      object ans=args[1];
+      IProcedure kons = Ops.ExpectProcedure(args[0]);
+      object ans = args[1];
 
       if(args.Length==3) return new folder1(kons, ans).Run(LispOps.ExpectList(args[2]));
       else
@@ -1449,7 +1449,7 @@ public sealed class Srfi1
   { public span() : base("span", 2, 2) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      IProcedure pred=Ops.ExpectProcedure(args[0]);
+      IProcedure pred = Ops.ExpectProcedure(args[0]);
       Pair list=LispOps.ExpectList(args[1]), head=null, tail=null;
       bool realloc = pred.NeedsFreshArgs;
 
@@ -1473,7 +1473,7 @@ public sealed class Srfi1
   { public spanN() : base("span!", 2, 2) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      IProcedure pred=Ops.ExpectProcedure(args[0]);
+      IProcedure pred = Ops.ExpectProcedure(args[0]);
       Pair list=LispOps.ExpectList(args[1]), head=list, prev=null;
       bool realloc = pred.NeedsFreshArgs;
 
@@ -1541,7 +1541,7 @@ public sealed class Srfi1
 
     public override object Call(object[] args)
     { CheckArity(args);
-      IProcedure pred=Ops.ExpectProcedure(args[0]);
+      IProcedure pred = Ops.ExpectProcedure(args[0]);
       Pair list=LispOps.ExpectList(args[1]), head=null, tail=null;
       bool realloc = pred.NeedsFreshArgs;
 
@@ -1566,7 +1566,7 @@ public sealed class Srfi1
 
     public override object Call(object[] args)
     { CheckArity(args);
-      IProcedure pred=Ops.ExpectProcedure(args[0]);
+      IProcedure pred = Ops.ExpectProcedure(args[0]);
       Pair list=LispOps.ExpectList(args[1]), head=list, prev=null;
       bool realloc = pred.NeedsFreshArgs;
 

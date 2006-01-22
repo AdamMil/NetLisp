@@ -2228,7 +2228,7 @@ public sealed class Builtins
   #endregion
 
   [ScriptName("compiled-procedure?")]
-  public static object compiledProcedureP(object obj) { return Ops.FromBool(obj is IProcedure); }
+  public static object compiledProcedureP(object obj) { return Ops.FromBool(Ops.IsProcedure(obj)); }
 
   [ScriptName("compound-procedure?")]
   public static object compoundProcedureP(object obj) { return Ops.FALSE; }
@@ -2256,7 +2256,7 @@ public sealed class Builtins
     public override object Call(object[] args)
     { CheckArity(args);
       object func = args[0];
-      return Ops.FromBool(!(func is Closure) && func is IProcedure);
+      return Ops.FromBool(!(func is Closure) && Ops.IsProcedure(func));
     }
   }
   #endregion
@@ -2267,7 +2267,7 @@ public sealed class Builtins
 
     public override object Call(object[] args)
     { CheckArity(args);
-      return Ops.FromBool(args[0] is IProcedure);
+      return Ops.FromBool(Ops.IsProcedure(args[0]));
     }
   }
   #endregion

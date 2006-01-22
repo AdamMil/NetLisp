@@ -189,7 +189,7 @@ public sealed class Pair
 
 #region Promise
 public sealed class Promise
-{ public Promise(IProcedure form) { Form=form; }
+{ public Promise(IProcedure form) { Form = form; }
   public override string ToString() { return "#<promise>"; }
   public IProcedure Form;
   public object Value;

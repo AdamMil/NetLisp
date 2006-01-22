@@ -125,7 +125,7 @@ public sealed class LispLanguage : Language
         case "pair?": Ops.CheckArity(name, a, 1); result = a[0] is Pair; break;
         case "promise?": Ops.CheckArity(name, a, 1); result = a[0] is Promise; break;
         case "null?": Ops.CheckArity(name, a, 1); result = a[0]==null; break;
-        case "procedure?": Ops.CheckArity(name, a, 1); result = a[0] is IProcedure; break;
+        case "procedure?": Ops.CheckArity(name, a, 1); result = Ops.IsProcedure(a[0]); break;
         case "string?": Ops.CheckArity(name, a, 1); result = a[0] is string; break;
         case "string-length":
           Ops.CheckArity(name, a, 1);
@@ -214,7 +214,7 @@ public sealed class LispLanguage : Language
       case "promise?": case "string-null?":
       { node.CheckArity(1);
         if(etype==typeof(void)) { cg.EmitVoids(args); return true; }
-        Type type=null;
+        Type type = null;
         if(name=="string-null?") args[0].EmitString(cg);
         else args[0].Emit(cg);
         switch(name)
@@ -222,18 +222,18 @@ public sealed class LispLanguage : Language
           case "char?": type=typeof(char); break;
           case "symbol?": type=typeof(Symbol); break;
           case "string?": type=typeof(string); break;
-          case "procedure?": type=typeof(IProcedure); break;
+          case "procedure?": cg.EmitCall(typeof(Ops), "IsProcedure"); type=typeof(bool); break;
           case "vector?": type=typeof(object[]); break;
           case "promise?": type=typeof(Promise); break;
           case "not": cg.EmitIsTrue(); break;
           case "string-null?": cg.EmitPropGet(typeof(string), "Length"); break;
         }
         if(etype==typeof(bool))
-        { if(type!=null) cg.ILG.Emit(OpCodes.Isinst, type);
-          else etype=typeof(CodeGenerator.negbool); // for 'not', above
+        { if(type==null) etype = typeof(CodeGenerator.negbool); // for 'not', above
+          else if(type!=typeof(bool)) cg.ILG.Emit(OpCodes.Isinst, type);
         }
         else
-        { if(type!=null) cg.ILG.Emit(OpCodes.Isinst, type);
+        { if(type!=null && type!=typeof(bool)) cg.ILG.Emit(OpCodes.Isinst, type);
           cg.BoolToObject(type==null);
           goto objret;
         }

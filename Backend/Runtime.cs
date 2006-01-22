@@ -171,10 +171,10 @@ public sealed class Pair
     do
     { if(sep) sb.Append(' ');
       else sep=true;
-      sb.Append(Ops.Repr(pair.Car));
+      sb.Append(Ops.ToCode(pair.Car));
       next = pair.Cdr as Pair;
       if(next==null)
-      { if(pair.Cdr!=null) sb.Append(" . ").Append(Ops.Repr(pair.Cdr));
+      { if(pair.Cdr!=null) sb.Append(" . ").Append(Ops.ToCode(pair.Cdr));
         break;
       }
       else pair=next;

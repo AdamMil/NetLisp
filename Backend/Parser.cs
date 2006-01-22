@@ -4,7 +4,7 @@ Scheme, also called NetLisp. This implementation is both interpreted
 and compiled, targetting the Microsoft .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2005 Adam Milazzo
+Copyright (C) 2005-2006 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -129,12 +129,12 @@ returnSyntax = false; // TODO: remove this
       default: throw SyntaxError("unexpected token: "+token);
     }
 
-    while(token==Token.LCurly) // obj{Prop a0 a1 ...} -> (.pmember obj "Prop" a0 a1 ...)
+    while(token==Token.LCurly) // obj{Prop a0 a1 ...} -> (.property obj "Prop" a0 a1 ...)
     { NextToken();
       Expect(Token.Symbol);
 
       Pair tail = new Pair((string)value, null);
-      ret = new Pair(memberSym, tail);
+      ret = new Pair(propertySym, new Pair(ret, tail));
       NextToken();
       while(token!=Token.RCurly)
       { Pair next = new Pair(ParseOne(returnSyntax), null);
@@ -339,7 +339,7 @@ returnSyntax = false; // TODO: remove this
               lastChar=c;
 
               try { value = Builtins.nameToChar.core(sb.ToString()); }
-              catch(ValueErrorException e) { throw SyntaxError(e.Message); }
+              catch(FormatException e) { throw SyntaxError(e.Message); }
             }
             return Token.Literal;
           }
@@ -493,8 +493,7 @@ returnSyntax = false; // TODO: remove this
 
   static readonly Symbol quoteSym=Symbol.Get("quote"), unquoteSym=Symbol.Get("unquote"),
                          spliceSym=Symbol.Get("unquote-splicing"), quasiSym=Symbol.Get("quasiquote"),
-                         vectorSym=Symbol.Get("vector"), memberSym=Symbol.Get(".member"),
-                         dotLastSym=Symbol.Get(".last");
+                         vectorSym=Symbol.Get("vector"), propertySym=Symbol.Get(".property");
 
   static readonly Regex binNum =
     new Regex(@"^(:?(?<num>[+-]?(?:[01]+(?:\.[01]*)?|\.[01]+))(?:e(?<exp>[+-]?(?:[01]+(?:\.[01]*)?|\.[01]+)))?

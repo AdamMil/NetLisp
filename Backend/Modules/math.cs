@@ -4,7 +4,7 @@ Scheme, also called NetLisp. This implementation is both interpreted
 and compiled, targetting the Microsoft .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2005 Adam Milazzo
+Copyright (C) 2005-2006 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@ public sealed class math
             if(c.imag==0) return Math.Abs(c.real);
           }
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw Ops.ArgError(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -130,7 +130,7 @@ public sealed class math
             if(c.imag==0) return Math.Ceiling(c.real);
           }
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw Ops.ArgError(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -201,7 +201,7 @@ public sealed class math
           if(obj is Integer) return ((Integer)obj).Abs;
           if(obj is Complex) return ((Complex)obj).Magnitude;
           goto default;
-        default: throw Ops.TypeError(name+": expected a number, but received "+Ops.TypeName(obj));
+        default: throw Ops.ArgError(name+": expected a number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -260,7 +260,7 @@ public sealed class math
             if(c.imag==0) return Math.Floor(c.real);
           }
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw Ops.ArgError(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -289,7 +289,7 @@ public sealed class math
             if(c.imag==0) return Math.Round(c.real, places);
           }
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw Ops.ArgError(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
     }
 
@@ -358,7 +358,7 @@ public sealed class math
             if(c.imag==0) return doubleCore(c.real);
           }
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw Ops.ArgError(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
     }
 

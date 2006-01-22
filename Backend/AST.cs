@@ -4,7 +4,7 @@ Scheme, also called NetLisp. This implementation is both interpreted
 and compiled, targetting the Microsoft .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2005 Adam Milazzo
+Copyright (C) 2005-2006 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -304,6 +304,12 @@ public sealed class LispLanguage : Language
   }
   #endregion
 
+  public override bool IsConstant(object value)
+  { if(base.IsConstant(value) || value is Symbol) return true;
+    Pair pair = value as Pair;
+    return pair==null ? false : IsConstant(pair.Car) && IsConstant(pair.Cdr);
+  }
+
   public override bool IsConstantFunction(string name) { return Array.BinarySearch(constant, name)>=0; }
   public override bool IsHashableConstant(object value) { return value is Symbol; }
 
@@ -435,10 +441,21 @@ public sealed class AST
     SyntaxObject syntax = null;
     if(sym!=null)
     { string name = sym.Name;
-      if(name==".last") return new LastNode();
+      Node var;
+
       int pos = name.IndexOf('.', 1);
-      Node var = new VariableNode(pos==-1 ? name : name.Substring(0, pos));
-      return pos==-1 ? var : SetPos(syntax, new PropMemberNode(var, new LiteralNode(name.Substring(pos+1))));
+      if(pos!=-1)
+      { var = new VariableNode(name.Substring(0, pos));
+        return SetPos(syntax, new GetAccessorNode(var, new LiteralNode(name.Substring(pos+1))));
+      }
+      
+      pos = name.IndexOf("::", 1);
+      if(pos!=-1)
+      { var = new VariableNode(name.Substring(0, pos));
+        return SetPos(syntax, new GetSlotNode(var, new LiteralNode(name.Substring(pos+2))));
+      }
+      
+      return new VariableNode(name);
     }
 
     Pair pair = obj as Pair;
@@ -636,46 +653,66 @@ public sealed class AST
 
           return SetPos(syntax, new ThrowNode(type, objs));
         }
+        // (.accessor object member-name)
         // (.member object member-name)
-        case ".member":
+        case ".accessor": case ".member":
         { int length = Builtins.length.core(pair);
-          if(length!=3) throw Ops.SyntaxError(".member: must be of form (.member obj-form name-form)");
+          if(length!=3) throw Ops.SyntaxError(".accessor: must be of form (.accessor obj-form name-form)");
           pair = (Pair)pair.Cdr;
-          return SetPos(syntax, new PropMemberNode(Parse(pair.Car), Parse(LispOps.FastCadr(pair))));
+          Node objNode=Parse(pair.Car), member=Parse(LispOps.FastCadr(pair));
+          return SetPos(syntax, sym.Name==".member" ? (Node)new GetSlotNode(objNode, member)
+                                                    : new GetAccessorNode(objNode, member));
         }
-        // (.pmember object member-name a0 a1 ...)
-        case ".pmember":
+        // (.property object member-name a0 a1 ...)
+        case ".property":
         { int length = Builtins.length.core(pair);
-          if(length<3) throw Ops.SyntaxError(".pmember: must be of form (.member obj-form name-form arg-form ...)");
-          pair = (Pair)pair.Cdr;
-          return SetPos(syntax, new PropertyNode(Parse(pair.Car), Parse(LispOps.FastCadr(pair)),
-                                                 ParseNodeList(LispOps.FastCddr(pair) as Pair)));
+          if(length<3) throw Ops.SyntaxError(".property: must be of form (.property obj-form name-form arg-form ...)");
+          Pair p = (Pair)pair.Cdr;
+          Node nameNode = Parse(LispOps.FastCadr(p));
+          nameNode.Optimize(); // HACK: this is ugly
+          if(!nameNode.IsConstant) break;
+          string name = nameNode.Evaluate() as string;
+          if(name==null) throw Ops.SyntaxError(".property expects name-form to evaluate to a string");
+
+          Node objNode = Parse(p.Car);
+          Node[] args = ParseNodeList(LispOps.FastCddr(p) as Pair);
+
+          if(name.StartsWith("get/"))
+          { nameNode = new LiteralNode(name.Substring(4));
+            if(args==null || args.Length==0) return new GetPropertyNode(objNode, nameNode);
+          }
+          else if(name.StartsWith("set/"))
+          { nameNode = new LiteralNode(name.Substring(4));
+            if(args!=null && args.Length==1) return new SetPropertyNode(objNode, nameNode, args[0]);
+          }
+          return new CallPropertyNode(objNode, nameNode, args);
         }
       }
 
-    Node func = Parse(pair.Car);
-    Node[] args = ParseNodeList(pair.Cdr as Pair);
-    // TODO: move this optimization into Scripting
-    if(Options.Current.OptimizeAny && func is LambdaNode) // optimization: transform ((lambda (a) ...) x) into (let ((a x)) ...)
-    { LambdaNode fl = (LambdaNode)func;
-      string[] names = new string[fl.Parameters.Length];
-      for(int i=0; i<names.Length; i++) names[i] = fl.Parameters[i].Name.String;
-      int positional = fl.Parameters.Length-(fl.HasList ? 1 : 0);
-      Ops.CheckArity("<unnamed lambda>", args.Length, positional, fl.HasList ? -1 : positional);
+    { Node func = Parse(pair.Car);
+      Node[] args = ParseNodeList(pair.Cdr as Pair);
+      // TODO: move this optimization into Scripting
+      if(Options.Current.OptimizeAny && func is LambdaNode) // optimization: transform ((lambda (a) ...) x) into (let ((a x)) ...)
+      { LambdaNode fl = (LambdaNode)func;
+        string[] names = new string[fl.Parameters.Length];
+        for(int i=0; i<names.Length; i++) names[i] = fl.Parameters[i].Name.String;
+        int positional = fl.Parameters.Length-(fl.HasList ? 1 : 0);
+        Ops.CheckArity("<unnamed lambda>", args.Length, positional, fl.HasList ? -1 : positional);
 
-      Node[] inits = new Node[names.Length];
-      for(int i=0; i<positional; i++) inits[i] = args[i];
-      if(fl.HasList)
-      { if(args.Length==positional) inits[positional] = new LiteralNode(null);
-        else
-        { Node[] elems = new Node[args.Length-positional];
-          for(int i=positional; i<args.Length; i++) elems[i-positional] = args[i];
-          inits[positional] = new ListNode(elems, null);
+        Node[] inits = new Node[names.Length];
+        for(int i=0; i<positional; i++) inits[i] = args[i];
+        if(fl.HasList)
+        { if(args.Length==positional) inits[positional] = new LiteralNode(null);
+          else
+          { Node[] elems = new Node[args.Length-positional];
+            for(int i=positional; i<args.Length; i++) elems[i-positional] = args[i];
+            inits[positional] = new ListNode(elems, null);
+          }
         }
+        return new LocalBindNode(names, inits, fl.Body);
       }
-      return new LocalBindNode(names, inits, fl.Body);
+      else return SetPos(syntax, new CallNode(func, args));
     }
-    else return SetPos(syntax, new CallNode(func, args));
   }
 
   static Node ParseBody(Pair start)

@@ -326,8 +326,10 @@ public sealed class LispLanguage : Language
   { return Parse(new Parser(sourceName, data));
   }
 
-  #region Repr
-  public override string Repr(object obj)
+  public override bool ShouldAddBuiltins(Type type) { return type!=typeof(Builtins); }
+
+  #region ToCode
+  public override string ToCode(object obj)
   { switch(Convert.GetTypeCode(obj))
     { case TypeCode.Boolean: return (bool)obj ? "#t" : "#f";
       case TypeCode.Char: return Backend.Builtins.charToName.core((char)obj, true);
@@ -378,9 +380,7 @@ public sealed class LispLanguage : Language
   }
   #endregion
 
-  public override string Repr(Node node) { throw new NotImplementedException("node repr"); }
-
-  public override bool ShouldAddBuiltins(Type type) { return type!=typeof(Builtins); }
+  public override string ToCode(Node node) { throw new NotImplementedException("node repr"); }
 
   #region TypeName
   public override string TypeName(Type type)

@@ -4,7 +4,7 @@ Scheme, also called NetLisp. This implementation is both interpreted
 and compiled, targetting the Microsoft .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2005 Adam Milazzo
+Copyright (C) 2005-2006 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -358,6 +358,16 @@ public sealed class Builtins
   }
 
   #region .NET functions
+  #region .accessor
+  public sealed class dotAccessor : Primitive
+  { public dotAccessor() : base(".accessor", 2, 2) { }
+    public override object Call(object[] args)
+    { CheckArity(args);
+      return Ops.GetAccessor(args[0], Ops.ExpectString(args[1]));
+    }
+  }
+  #endregion
+
   #region .array
   public sealed class dotArray : Primitive
   { public dotArray() : base(".array", 2, -1) { }
@@ -483,7 +493,7 @@ public sealed class Builtins
   { public dotMember() : base(".member", 2, 2) { }
     public override object Call(object[] args)
     { CheckArity(args);
-      return Ops.GetSlot(Ops.LastPtr=args[0], Ops.ExpectString(args[1]));
+      return Ops.GetSlot(args[0], Ops.ExpectString(args[1]));
     }
   }
   #endregion
@@ -495,6 +505,33 @@ public sealed class Builtins
     { CheckArity(args);
       bool includeImports = args.Length==2 && Ops.IsTrue(args[1]);
       return dotCollect.core(ReflectedType.FromObject(args[0]).GetMemberNames(includeImports).GetEnumerator());
+    }
+  }
+  #endregion
+
+  #region .property
+  public sealed class dotProperty : Primitive
+  { public dotProperty() : base(".property", 2, -1) { }
+    public override object Call(object[] args)
+    { CheckArity(args);
+      string name = Ops.ExpectString(args[1]);
+
+      if(name.StartsWith("get/"))
+      { name = name.Substring(4);
+        if(args.Length==2) return Ops.GetProperty(args[0], name);
+      }
+      else if(name.StartsWith("set/"))
+      { name = name.Substring(4);
+        if(args.Length==3)
+        { Ops.SetProperty(args[2], args[0], name);
+          return null;
+        }
+      }
+
+      object[] nargs = new object[args.Length-1];
+      nargs[0] = args[0];
+      Array.Copy(args, 2, nargs, 1, nargs.Length-1);
+      return Ops.CallProperty(nargs[0], name, nargs);
     }
   }
   #endregion
@@ -572,7 +609,7 @@ public sealed class Builtins
       if(str!=null) return str[Ops.ExpectInt(args[1])];
       Pair pair = args[0] as Pair;
       if(pair!=null) return listRef.core(name, pair, Ops.ExpectInt(args[1]));
-      throw Ops.TypeError(name+": expected container type, but received "+Ops.TypeName(args[0]));
+      throw new ArgumentException(name+": expected container type, but received "+Ops.TypeName(args[0]));
     }
   }
   #endregion
@@ -599,7 +636,7 @@ public sealed class Builtins
         return pair.Car = value;
       }
 
-      throw Ops.TypeError(name+": expected mutable container type, but received "+Ops.TypeName(args[0]));
+      throw new ArgumentException(name+": expected mutable container type, but received "+Ops.TypeName(args[0]));
     }
   }
   #endregion
@@ -939,11 +976,11 @@ public sealed class Builtins
 
     internal static char core(string name)
     { char c;
-      if(name.Length==0) throw Ops.ValueError("name->char: expected non-empty string");
+      if(name.Length==0) throw new FormatException("name->char: expected non-empty string");
       else if(name.Length==1) c=name[0];
       else if(name.StartsWith("c-") && name.Length==3)
       { int i = char.ToUpper(name[2])-64;
-        if(i<1 || i>26) throw Ops.ValueError("name->char: invalid control code "+name);
+        if(i<1 || i>26) throw new FormatException("name->char: invalid control code "+name);
         c=(char)i;
       }
       else
@@ -982,7 +1019,7 @@ public sealed class Builtins
           case "gs":  c=(char)29; break;
           case "rs":  c=(char)30; break;
           case "us": case "backnext": c=(char)31; break;
-          default: throw Ops.ValueError("name->char: unknown character name '"+name+"'");
+          default: throw new FormatException("name->char: unknown character name '"+name+"'");
         }
 
       return c;
@@ -1072,7 +1109,7 @@ public sealed class Builtins
       Pair  list=LispOps.ExpectList(args[1]);
       while(list!=null)
       { Pair pair = list.Car as Pair;
-        if(pair==null) throw Ops.ValueError(name+": alists must contain only pairs");
+        if(pair==null) throw new ArgumentException(name+": alists must contain only pairs");
         if(pair.Car==obj) return pair;
         list = list.Cdr as Pair;
       }
@@ -1089,7 +1126,7 @@ public sealed class Builtins
       Pair  list=LispOps.ExpectList(args[1]);
       while(list!=null)
       { Pair pair = list.Car as Pair;
-        if(pair==null) throw Ops.ValueError(name+": alists must contain only pairs");
+        if(pair==null) throw new ArgumentException(name+": alists must contain only pairs");
         if(Ops.AreEqual(obj, pair.Car)) return pair;
         list = list.Cdr as Pair;
       }
@@ -1107,7 +1144,7 @@ public sealed class Builtins
       if(args.Length==2)
         while(list!=null)
         { Pair pair = list.Car as Pair;
-          if(pair==null) throw Ops.ValueError(name+": alists must contain only pairs");
+          if(pair==null) throw new ArgumentException(name+": alists must contain only pairs");
           if(LispOps.EqualP(obj, pair.Car)) return pair;
           list = list.Cdr as Pair;
         }
@@ -1120,7 +1157,7 @@ public sealed class Builtins
         }
         while(list!=null)
         { Pair pair = list.Car as Pair;
-          if(pair==null) throw Ops.ValueError(name+": alists must contain only pairs");
+          if(pair==null) throw new ArgumentException(name+": alists must contain only pairs");
           if(realloc) args = new object[2] { pair.Car, obj };
           else args[0] = pair.Car;
           if(Ops.IsTrue(pred.Call(args))) return list;
@@ -1454,8 +1491,7 @@ public sealed class Builtins
       else
       { if(args.Length==3) { start=Ops.ExpectInt(args[1]); length=vec.Length-start; }
         else { start=Ops.ExpectInt(args[1]); length=Ops.ExpectInt(args[2]); }
-        if(start<0 || length<0 || start+length>=vec.Length)
-          throw Ops.ValueError(name+": start or length out of bounds");
+        if(start<0 || length<0 || start+length>=vec.Length) throw new ArgumentOutOfRangeException("start or length");
       }
       return LispOps.List(vec, start, length);
     }
@@ -1577,7 +1613,7 @@ public sealed class Builtins
             if(c.imag==0) { iv=(int)c.real; goto isint; }
           }
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
 
       isint: return (iv&1)==0 && iv!=0 ? Ops.TRUE : Ops.FALSE;
@@ -1602,7 +1638,7 @@ public sealed class Builtins
           if(obj is Integer) return Ops.TRUE;
           if(obj is Complex) return Ops.FALSE;
           goto default;
-        default: throw Ops.TypeError(name+": expected a number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1625,7 +1661,7 @@ public sealed class Builtins
           if(obj is Integer) return Ops.TRUE;
           if(obj is Complex) return Ops.FALSE;
           goto default;
-        default: throw Ops.TypeError(name+": expected a number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1653,7 +1689,7 @@ public sealed class Builtins
         case TypeCode.Object:
           if(obj is Integer) return ((Integer)obj).ToDouble();
           goto default;
-        default: throw Ops.TypeError(name+": expected a number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1686,7 +1722,7 @@ public sealed class Builtins
           if(obj is Integer) return Ops.FALSE;
           if(obj is Complex) return Ops.TRUE;
           goto default;
-        default: throw Ops.TypeError(name+": expected a number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1712,7 +1748,7 @@ public sealed class Builtins
           if(obj is Integer) return obj;
           if(obj is Complex) throw new NotImplementedException("rationals");
           goto default;
-        default: throw Ops.TypeError("inexact->exact"+": expected a number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException("inexact->exact"+": expected a number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1789,7 +1825,7 @@ public sealed class Builtins
         case TypeCode.Object:
           if(obj is Integer) return ((Integer)obj).Sign==-1;
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1847,7 +1883,7 @@ public sealed class Builtins
             if(c.imag==0) { iv=(int)c.real; goto isint; }
           }
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
 
       isint: return (iv&1)!=0 ? Ops.TRUE : Ops.FALSE;
@@ -1878,7 +1914,7 @@ public sealed class Builtins
           if(obj is Integer) return (Integer)obj==Integer.Zero;
           if(obj is Complex) return (Complex)obj==Complex.Zero;
           goto default;
-        default: throw Ops.TypeError(name+": expected a number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1906,7 +1942,7 @@ public sealed class Builtins
         case TypeCode.Object:
           if(obj is Integer) return ((Integer)obj).Sign==1;
           goto default;
-        default: throw Ops.TypeError(name+": expected a real number, but received "+Ops.TypeName(obj));
+        default: throw new ArgumentException(name+": expected a real number, but received "+Ops.TypeName(obj));
       }
     }
   }
@@ -1954,7 +1990,8 @@ public sealed class Builtins
       if(args.Length==1) radix = 10;
       else
       { radix = Ops.ExpectInt(args[1]);
-        if(radix!=10 && radix!=16 && radix!=8 && radix!=2) throw Ops.ValueError(name+": radix must be 2, 8, 10, or 16");
+        if(radix!=10 && radix!=16 && radix!=8 && radix!=2)
+          throw new ArgumentException(name+": radix must be 2, 8, 10, or 16");
       }
       return Parser.ParseNumber(Ops.ExpectString(args[0]), radix);
     }
@@ -2314,7 +2351,7 @@ public sealed class Builtins
     public override object Call(object[] args)
     { CheckArity(args);
       Promise p = LispOps.ExpectPromise(args[0]);
-      if(p.Form!=null) throw Ops.ValueError(name+": the promise has not be forced yet");
+      if(p.Form!=null) throw new InvalidOperationException(name+": the promise has not be forced yet");
       return p.Value;
     }
   }
@@ -2409,7 +2446,7 @@ public sealed class Builtins
       System.Text.StringBuilder sb = new System.Text.StringBuilder();
 
       try { while(pair!=null) { sb.Append((char)pair.Car); pair=pair.Cdr as Pair; } }
-      catch(InvalidCastException) { throw Ops.TypeError(name+": expects a list of characters"); }
+      catch(InvalidCastException) { throw new ArgumentException(name+": expects a list of characters"); }
       return sb.ToString();
     }
   }
@@ -2449,7 +2486,7 @@ public sealed class Builtins
     public override object Call(object[] args)
     { char[] chars = new char[args.Length];
       try { for(int i=0; i<args.Length; i++) chars[i] = (char)args[i]; }
-      catch(InvalidCastException) { throw Ops.TypeError(name+": expects character arguments"); }
+      catch(InvalidCastException) { throw new ArgumentException(name+": expects character arguments"); }
       return new string(chars);
     }
   }
@@ -3161,7 +3198,7 @@ public sealed class Builtins
     { CheckArity(args);
       object[] ret, vec = Ops.ExpectVector(args[0]);
       int start=Ops.ExpectInt(args[1]), length=Ops.ExpectInt(args[2]);
-      if(start<0 || length<0 || start+length>=vec.Length) throw Ops.ValueError(name+": start or length out of bounds");
+      if(start<0 || length<0 || start+length>=vec.Length) throw new ArgumentOutOfRangeException("start or length");
       ret = new object[length];
       Array.Copy(vec, start, ret, 0, length);
       return ret;
@@ -3215,8 +3252,7 @@ public sealed class Builtins
       else
       { if(args.Length==3) { start=Ops.ExpectInt(args[2]); length=vec.Length-start; }
         else { start=Ops.ExpectInt(args[2]); length=Ops.ExpectInt(args[3]); }
-        if(start<0 || length<0 || start+length>=vec.Length)
-          throw Ops.ValueError(name+": start or length out of bounds");
+        if(start<0 || length<0 || start+length>=vec.Length) throw new ArgumentOutOfRangeException("start or length");
       }
 
       for(int end=start+length; start<end; start++); vec[start]=fill;
@@ -3336,7 +3372,7 @@ public sealed class Builtins
       }
       else
       { TopLevel top=args[1] as TopLevel, old=TopLevel.Current;
-        if(top==null) throw Ops.TypeError(name+": expected environment, but received "+Ops.TypeName(args[1]));
+        if(top==null) throw new ArgumentException(name+": expected environment, but received "+Ops.TypeName(args[1]));
         try
         { TopLevel.Current = top;
           if(snip==null) snip = compile(args[0]);
@@ -3358,7 +3394,7 @@ public sealed class Builtins
   public static void error(params object[] objs) // TODO: use a macro to provide source information
   { System.Text.StringBuilder sb = new System.Text.StringBuilder();
     foreach(object o in objs) sb.Append(Ops.Str(o));
-    throw new RuntimeException(sb.ToString());
+    throw new ScriptException(sb.ToString());
   }
 
   #region #%import
@@ -3415,7 +3451,7 @@ public sealed class Builtins
           if(name==null || asName==null) goto syntaxError;
 
           object value;
-          if(!module.GetSlot(name.Name, out value)) // TODO: should we use GetValue instead of GetSlot?
+          if(!module.GetProperty(module, name.Name, out value))
             throw new ArgumentException("Module "+modName+" does not contain a member named '"+name.Name+"'");
           TopLevel.Current.Bind(asName.Name, value);
         }

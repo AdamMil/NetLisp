@@ -4,7 +4,7 @@ Scheme, also called NetLisp. This implementation is both interpreted
 and compiled, targetting the Microsoft .NET Framework.
 
 http://www.adammil.net/
-Copyright (C) 2005 Adam Milazzo
+Copyright (C) 2005-2006 Adam Milazzo
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -197,7 +197,7 @@ public sealed class Srfi1
       if(list==null) return null;
       do
       { Pair pair = list.Car as Pair;
-        if(pair==null) throw Ops.ValueError(Name+": alists must contain only pairs");
+        if(pair==null) throw new ArgumentException(Name+": alists must contain only pairs");
         pair = new Pair(new Pair(pair.Car, pair.Cdr), null);
         if(head==null) head=tail=pair;
         else { tail.Cdr=pair; tail=pair; }
@@ -218,7 +218,7 @@ public sealed class Srfi1
       if(args.Length==2)
         while(list!=null)
         { Pair pair = list.Car as Pair;
-          if(pair==null) throw Ops.ValueError(Name+": alists must contain only pairs");
+          if(pair==null) throw new ArgumentException(Name+": alists must contain only pairs");
           if(!LispOps.EqualP(obj, pair.Car))
           { Pair next=new Pair(list.Car, null);
             if(head==null) head=tail=next;
@@ -235,7 +235,7 @@ public sealed class Srfi1
         }
         while(list!=null)
         { Pair pair = list.Car as Pair;
-          if(pair==null) throw Ops.ValueError(Name+": alists must contain only pairs");
+          if(pair==null) throw new ArgumentException(Name+": alists must contain only pairs");
           if(realloc) args = new object[2] { pair.Car, obj };
           else args[0] = pair.Car;
           if(!Ops.IsTrue(pred.Call(args)))
@@ -260,7 +260,7 @@ public sealed class Srfi1
       if(args.Length==2)
         while(list!=null)
         { Pair pair = list.Car as Pair;
-          if(pair==null) throw Ops.ValueError(Name+": alists must contain only pairs");
+          if(pair==null) throw new ArgumentException(Name+": alists must contain only pairs");
           Pair next = list.Cdr as Pair;
           if(LispOps.EqualP(obj, pair.Car))
           { if(prev==null) head=next;
@@ -278,7 +278,7 @@ public sealed class Srfi1
         }
         while(list!=null)
         { Pair pair = list.Car as Pair;
-          if(pair==null) throw Ops.ValueError(Name+": alists must contain only pairs");
+          if(pair==null) throw new ArgumentException(Name+": alists must contain only pairs");
           if(realloc) args = new object[2] { pair.Car, obj };
           else args[0] = pair.Car;
           Pair next = list.Cdr as Pair;
@@ -957,7 +957,7 @@ public sealed class Srfi1
     { CheckArity(args);
       int count = Ops.ToInt(args[0]);
       if(count==0) return null;
-      if(count<0) throw Ops.ValueError(Name+": count cannot be negative");
+      if(count<0) throw new ArgumentException(Name+": count cannot be negative");
       object start=args.Length<2 ? 0 : args[1], step=args.Length<3 ? 1 : args[2];
       // this can be optimized with type-specific paths (eg, int and float)
       Pair head=new Pair(start, null), tail=head;

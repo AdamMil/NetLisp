@@ -24,6 +24,7 @@ using System.Collections;
 using System.IO;
 using System.Reflection;
 using Scripting;
+using Scripting.Backend;
 
 // TODO: read http://citeseer.ist.psu.edu/88826.html
 

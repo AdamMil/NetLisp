@@ -25,6 +25,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using Scripting;
+using Scripting.Backend;
 
 namespace NetLisp.Backend
 {

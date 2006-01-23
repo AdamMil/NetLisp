@@ -24,6 +24,7 @@ using System.Collections;
 using System.Reflection;
 using System.Reflection.Emit;
 using Scripting;
+using Scripting.Backend;
 
 namespace NetLisp.Backend
 {
@@ -69,7 +70,7 @@ public sealed class LispLanguage : Language
   public override string Name { get { return "NetLisp"; } }
 
   #region EmitConstant
-  public override bool EmitConstant(Scripting.CodeGenerator cg, object value)
+  public override bool EmitConstant(Scripting.Backend.CodeGenerator cg, object value)
   { if(value is Symbol)
     { Symbol sym = (Symbol)value;
       cg.EmitString(sym.Name);
@@ -169,7 +170,7 @@ public sealed class LispLanguage : Language
   }
 
   #region InlineFunction
-  public override bool InlineFunction(Scripting.CodeGenerator scg, string name, CallNode node, ref Type etype)
+  public override bool InlineFunction(Scripting.Backend.CodeGenerator scg, string name, CallNode node, ref Type etype)
   { object op = ops[name];
     if(op!=null) return base.InlineFunction(scg, (string)op, node, ref etype);
 
@@ -313,7 +314,7 @@ public sealed class LispLanguage : Language
   public override bool IsConstantFunction(string name) { return Array.BinarySearch(constant, name)>=0; }
   public override bool IsHashableConstant(object value) { return value is Symbol; }
 
-  public override Scripting.CodeGenerator MakeCodeGenerator(TypeGenerator tg, MethodBase mb, ILGenerator ilg)
+  public override Scripting.Backend.CodeGenerator MakeCodeGenerator(TypeGenerator tg, MethodBase mb, ILGenerator ilg)
   { return new CodeGenerator(tg, mb, ilg);
   }
 
@@ -343,7 +344,7 @@ public sealed class LispLanguage : Language
           foreach(object o in (object[])obj)
           { if(sep) sb.Append(' ');
             else sep=true;
-            sb.Append(Repr(o));
+            sb.Append(ToCode(o));
           }
           sb.Append(')');
           return sb.ToString();
@@ -792,7 +793,7 @@ public sealed class AST
 public sealed class DefineNode : Node
 { public DefineNode(string name, Node value) { Set = new SetNode(name, value, SetType.Set); }
 
-  public override void Emit(Scripting.CodeGenerator cg, ref Type etype)
+  public override void Emit(Scripting.Backend.CodeGenerator cg, ref Type etype)
   { Set.EmitVoid(cg);
     if(etype!=typeof(void))
     { cg.EmitConstantObject(Symbol.Get(((VariableNode)Set.LHS[0]).Name.String));
@@ -823,7 +824,7 @@ public sealed class DefineNode : Node
 public sealed class ListNode : Node
 { public ListNode(Node[] items, Node dot) { Items=items; Dot=dot; }
 
-  public override void Emit(Scripting.CodeGenerator cg, ref Type etype)
+  public override void Emit(Scripting.Backend.CodeGenerator cg, ref Type etype)
   { if(!IsConstant || etype!=typeof(void))
     { if(IsConstant) cg.EmitConstantObject(Evaluate());
       else

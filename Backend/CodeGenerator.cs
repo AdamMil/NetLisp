@@ -23,11 +23,12 @@ using System;
 using System.Reflection;
 using System.Reflection.Emit;
 using Scripting;
+using Scripting.Backend;
 
 namespace NetLisp.Backend
 {
 
-public sealed class CodeGenerator : Scripting.CodeGenerator
+public sealed class CodeGenerator : Scripting.Backend.CodeGenerator
 { public CodeGenerator(TypeGenerator tg, MethodBase mb, ILGenerator ilg) : base(tg, mb, ilg) { }
 
   public void EmitList(Node[] items) { EmitList(items, null, 0); }

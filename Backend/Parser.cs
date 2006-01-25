@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -91,7 +91,7 @@ returnSyntax = false; // TODO: remove this
       { Token end = token==Token.LParen ? Token.RParen : Token.RBracket;
         if(NextToken()==end) { NextToken(); ret=null; }
         else
-          using(CachedArray items = CachedArray.Alloc())
+          using(CachedList<object> items = CachedList<object>.Alloc())
           { object dot = null;
             do
             { items.Add(ParseOne(returnSyntax));
@@ -100,7 +100,7 @@ returnSyntax = false; // TODO: remove this
             while(token!=end && token!=Token.EOF);
             if(items.Count==0 && dot!=null) throw SyntaxError("malformed dotted list");
             Eat(end);
-            ret = LispOps.DottedList(dot, (object[])items.ToArray(typeof(object)));
+            ret = LispOps.DottedList(dot, items.ToArray());
           }
         break;
       }
@@ -120,10 +120,10 @@ returnSyntax = false; // TODO: remove this
       case Token.Quote: NextToken(); ret = LispOps.List(quoteSym, ParseOne(returnSyntax)); break;
       case Token.Splice: NextToken(); ret = LispOps.List(spliceSym, ParseOne(returnSyntax)); break;
       case Token.Vector:
-        using(CachedArray items = CachedArray.Alloc())
+        using(CachedList<object> items = CachedList<object>.Alloc())
         { NextToken();
           while(!TryEat(Token.RParen)) items.Add(ParseOne(returnSyntax));
-          ret = LispOps.List2(vectorSym, (object[])items.ToArray(typeof(object)));
+          ret = LispOps.List2(vectorSym, items.ToArray());
         }
         break;
       case Token.EOF: return EOF;

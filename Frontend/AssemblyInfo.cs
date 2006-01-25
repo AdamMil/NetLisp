@@ -12,5 +12,3 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyCopyright("Copyright 2005, Adam Milazzo")]
 
 [assembly: AssemblyVersion("0.1.*")]
-
-[assembly: AssemblyKeyFile("../../../NetLisp.snk")]

@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using Scripting;
@@ -39,7 +40,7 @@ public class LispCodeAttribute : ScriptCodeAttribute
 #region LispLanguage
 public sealed class LispLanguage : Language
 { static LispLanguage()
-  { ArrayList cfunc = new ArrayList(new string[] {
+  { List<string> cfunc = new List<string>(new string[] {
       "eq?", "eqv?", "equal?", "null?", "pair?", "char?", "symbol?", "string?", "procedure?", "vector?", "values",
       "not", "string-null?", "string-length", "vector-length", "car", "cdr", "promise?",
       "char-upcase", "char-downcase", "->string", "list" });
@@ -51,7 +52,7 @@ public sealed class LispLanguage : Language
     };
     string[] straight = new string[] { "+", "-", "*", "/", "//", "%", "!=", "<", "<=", ">", ">=" };
 
-    ops = new SortedList(mapped.Length/2+straight.Length);
+    ops = new SortedList<string,string>(mapped.Length/2+straight.Length);
     for(int i=0; i<mapped.Length; i+=2)
     { ops[mapped[i]] = mapped[i+1];
       cfunc.Add(mapped[i]);
@@ -62,7 +63,7 @@ public sealed class LispLanguage : Language
     }
 
     cfunc.Sort();
-    constant = (string[])cfunc.ToArray(typeof(string));
+    constant = cfunc.ToArray();
   }
 
   public override MemberContainer Builtins { get { return Backend.Builtins.Instance; }}
@@ -95,8 +96,8 @@ public sealed class LispLanguage : Language
 
   #region EvaluateConstantFunction
   public override bool EvaluateConstantFunction(string name, Node[] args, out object result)
-  { object op = ops[name];
-    if(op!=null) name = (string)op;
+  { string op;
+    if(ops.TryGetValue(name, out op)) name = op;
     else
     { object[] a = Node.MakeObjectArray(args);
       switch(name)
@@ -154,8 +155,8 @@ public sealed class LispLanguage : Language
   public override bool ExcludeFromImport(string name) { return name.StartsWith("#_"); }
 
   public override Type GetInlinedResultType(string functionName)
-  { string op = (string)ops[functionName];
-    if(op!=null) return base.GetInlinedResultType(op);
+  { string op;
+    if(ops.TryGetValue(functionName, out op)) return base.GetInlinedResultType(op);
 
     switch(functionName)
     { case "equal?": case "null?": case "pair?": case "char?": case "symbol?": case "string?": case "procedure?":
@@ -171,8 +172,8 @@ public sealed class LispLanguage : Language
 
   #region InlineFunction
   public override bool InlineFunction(Scripting.Backend.CodeGenerator scg, string name, CallNode node, ref Type etype)
-  { object op = ops[name];
-    if(op!=null) return base.InlineFunction(scg, (string)op, node, ref etype);
+  { string op;
+    if(ops.TryGetValue(name, out op)) return base.InlineFunction(scg, op, node, ref etype);
 
     CodeGenerator cg = (CodeGenerator)scg;
     Node[] args = node.GetArgNodes();
@@ -421,7 +422,7 @@ public sealed class LispLanguage : Language
     return AST.Create(expand==null ? data : Ops.ExpectProcedure(expand).Call(data));
   }
 
-  static readonly SortedList ops;
+  static readonly SortedList<string,string> ops;
   static readonly string[] constant;
 }
 #endregion
@@ -447,13 +448,13 @@ public sealed class AST
       int pos = name.IndexOf('.', 1);
       if(pos!=-1)
       { var = new VariableNode(name.Substring(0, pos));
-        return SetPos(syntax, new GetAccessorNode(var, new LiteralNode(name.Substring(pos+1))));
+        return SetPos(syntax, new GetSlotNode(var, new LiteralNode(name.Substring(pos+1))));
       }
       
       pos = name.IndexOf("::", 1);
       if(pos!=-1)
       { var = new VariableNode(name.Substring(0, pos));
-        return SetPos(syntax, new GetSlotNode(var, new LiteralNode(name.Substring(pos+2))));
+        return SetPos(syntax, new GetAccessorNode(var, new LiteralNode(name.Substring(pos+2))));
       }
       
       return new VariableNode(name);
@@ -512,7 +513,9 @@ public sealed class AST
         }
         case "set!":
         { if(Builtins.length.core(pair)>=3)
-            using(CachedArray names=CachedArray.Alloc(), values=CachedArray.Alloc())
+          { CachedList<Name> names = CachedList<Name>.Alloc();
+            CachedList<Node> values = CachedList<Node>.Alloc();
+            try
             { pair = (Pair)pair.Cdr;
               do
               { sym = pair.Car as Symbol;
@@ -525,17 +528,17 @@ public sealed class AST
               } while(pair!=null);
 
               Node ret;
-              if(names.Count==1) ret = new SetNode(new VariableNode((Name)names[0]), (Node)values[0]);
+              if(names.Count==1) ret = new SetNode(new VariableNode(names[0]), values[0]);
               else
               { Node[] sets = new Node[names.Count];
-                for(int i=0; i<names.Count; i++)
-                  sets[i] = new SetNode(new VariableNode((Name)names[i]), (Node)values[i]);
+                for(int i=0; i<names.Count; i++) sets[i] = new SetNode(new VariableNode(names[i]), values[i]);
                 ret = new BodyNode(sets);
               }
               return SetPos(syntax, ret);
-              error:;
             }
-          throw Ops.SyntaxError("set!: must be of form (set! symbol form [symbol form] ...)");
+            finally { names.Dispose(); values.Dispose(); }
+          }
+          error: throw Ops.SyntaxError("set!: must be of form (set! symbol form [symbol form] ...)");
         }
         case "define":
         { int length = Builtins.length.core(pair);
@@ -562,7 +565,8 @@ public sealed class AST
           { if(pair.Car==null) return ParseBody((Pair)pair.Cdr);
             goto error;
           }
-          using(CachedArray names=CachedArray.Alloc(), inits=CachedArray.Alloc())
+          List<Name[]> names = new List<Name[]>();
+          using(CachedList<Node> inits = CachedList<Node>.Alloc())
           { do
             { Pair binding = bindings.Car as Pair;
               if(binding==null) goto bindingError;
@@ -579,8 +583,7 @@ public sealed class AST
               bindings = bindings.Cdr as Pair;
             } while(bindings!=null);
 
-            return new ValueBindNode((Name[][])names.ToArray(typeof(Name[])),
-                                    (Node[])inits.ToArray(typeof(Node)), ParseBody((Pair)pair.Cdr));
+            return new ValueBindNode(names.ToArray(), inits.ToArray(), ParseBody((Pair)pair.Cdr));
             bindingError: throw Ops.SyntaxError("let-value: bindings must be of form (((symbol ...) form) ...)");
           }
           error: throw Ops.SyntaxError("let-value: must be of form (let-values bindings form ...)");
@@ -596,7 +599,8 @@ public sealed class AST
         { if(Builtins.length.core(pair)<3) goto error;
           pair = (Pair)pair.Cdr;
           Node final=null, body=Parse(pair.Car);
-          CachedArray excepts=null, etypes=null;
+          CachedList<Node> etypes = null;
+          ArrayList excepts = null;
 
           while((pair=(Pair)pair.Cdr) != null)
           { Pair form = pair.Car as Pair;
@@ -604,7 +608,7 @@ public sealed class AST
             sym = form.Car as Symbol;
             if(sym==null) goto error;
             if(sym.Name=="catch")
-            { if(excepts==null) excepts = CachedArray.Alloc();
+            { if(excepts==null) excepts = new ArrayList();
               string evar;
               if(Builtins.length.core(form)<3) goto catchError;
               form = (Pair)form.Cdr;
@@ -616,14 +620,13 @@ public sealed class AST
                 evar = sym.Name;
                 epair = (Pair)epair.Cdr;
                 if(epair!=null)
-                { if(etypes==null) etypes = CachedArray.Alloc();
+                { if(etypes==null) etypes = CachedList<Node>.Alloc();
                   do etypes.Add(Parse(epair.Car)); while((epair=(Pair)epair.Cdr) != null);
                 }
               }
               else if(form.Car!=null) goto catchError;
               else evar = null;
-              excepts.Add(new Except(evar, etypes==null ? null : (Node[])etypes.ToArray(typeof(Node)),
-                                     ParseBody((Pair)form.Cdr)));
+              excepts.Add(new Except(evar, etypes==null ? null : etypes.ToArray(), ParseBody((Pair)form.Cdr)));
               if(etypes!=null) etypes.Clear();
             }
             else if(sym.Name=="finally")
@@ -635,9 +638,7 @@ public sealed class AST
 
           etypes.Dispose();
           if(excepts==null && final==null) goto error;
-          Except[] exceptArr = excepts==null ? null : (Except[])excepts.ToArray(typeof(Except));
-          if(excepts!=null) excepts.Dispose();
-          return new TryNode(body, final, exceptArr);
+          return new TryNode(body, final, excepts==null ? null : (Except[])excepts.ToArray(typeof(Except)));
           error: throw Ops.SyntaxError("try form expects one body form followed by catch forms and/or an optional finally form");
           catchError: throw Ops.SyntaxError("catch form should be of the form: (catch ([e [type ...]]) forms...)");
         }
@@ -727,7 +728,7 @@ public sealed class AST
     if(sym!=null) { hasList=true; return new string[] { sym.Name }; }
 
     Pair list = (Pair)obj;
-    using(CachedArray names = CachedArray.Alloc())
+    using(CachedList<string> names = CachedList<string>.Alloc())
     { while(list!=null)
       { sym = list.Car as Symbol;
         if(sym==null) goto error;
@@ -742,7 +743,7 @@ public sealed class AST
           break;
         }
       }
-      return (string[])names.ToArray(typeof(string));
+      return names.ToArray();
 
       error: throw Ops.SyntaxError("lambda bindings must be of the form: symbol | (symbol... [ . symbol])");
     }
@@ -751,12 +752,12 @@ public sealed class AST
   static Node[] ParseNodeList(Pair start) { return ParseNodeList(start, false); }
   static Node[] ParseNodeList(Pair start, bool nullReturn)
   { if(start==null) return nullReturn ? null : new Node[0];
-    using(CachedArray items = CachedArray.Alloc())
+    using(CachedList<Node> items = CachedList<Node>.Alloc())
     { while(start!=null)
       { items.Add(Parse(start.Car));
         start = start.Cdr as Pair;
       }
-      return (Node[])items.ToArray(typeof(Node));
+      return items.ToArray();
     }
   }
 
@@ -764,7 +765,7 @@ public sealed class AST
   { Pair pair = obj as Pair;
     if(pair==null) return new LiteralNode(obj);
 
-    using(CachedArray items = CachedArray.Alloc())
+    using(CachedList<Node> items = CachedList<Node>.Alloc())
     { Node dot = null;
       while(true)
       { items.Add(Quote(pair.Car));
@@ -775,7 +776,7 @@ public sealed class AST
           break;
         }
       }
-      return new ListNode((Node[])items.ToArray(typeof(Node)), dot);
+      return new ListNode(items.ToArray(), dot);
     }
   }
 

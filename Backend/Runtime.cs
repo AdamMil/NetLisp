@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using Scripting;
 using Scripting.Backend;
 
@@ -113,7 +113,7 @@ public sealed class LispOps
     }
     if(bindings==null) mc.Import(top, null, null);
     else
-      using(CachedArray names=CachedArray.Alloc(), asNames=CachedArray.Alloc())
+      using(CachedList<string> names=CachedList<string>.Alloc(), asNames=CachedList<string>.Alloc())
       { do
         { string name = bindings.Car as string, asName;
           if(name!=null) asName=name;
@@ -133,7 +133,7 @@ public sealed class LispOps
           bindings = bindings.Cdr as Pair;
         } while(bindings!=null);
 
-        mc.Import(top, (string[])names.ToArray(typeof(string)), (string[])asNames.ToArray(typeof(string)));
+        mc.Import(top, names.ToArray(), asNames.ToArray());
       }
   }
 
@@ -149,9 +149,9 @@ public sealed class LispOps
 
   public static object[] ListToArray(Pair pair)
   { if(pair==null) return Ops.EmptyArray;
-    using(CachedArray items = CachedArray.Alloc())
+    using(CachedList<object> items = CachedList<object>.Alloc())
     { while(pair!=null) { items.Add(pair.Car); pair = pair.Cdr as Pair; }
-      return (object[])items.ToArray(typeof(object));
+      return items.ToArray();
     }
   }
 }
@@ -205,14 +205,12 @@ public sealed class Symbol
   public override string ToString() { return Name; }
 
   public static Symbol Get(string name)
-  { lock(table)
-    { Symbol sym = (Symbol)table[name];
-      if(sym==null) table[name] = sym = new Symbol(name);
-      return sym;
-    }
+  { Symbol sym;
+    lock(table) if(!table.TryGetValue(name, out sym)) table[name] = sym = new Symbol(name);
+    return sym;
   }
 
-  static readonly Hashtable table = new Hashtable();
+  static readonly Dictionary<string,Symbol> table = new Dictionary<string,Symbol>();
 }
 #endregion
 

@@ -77,7 +77,7 @@ public sealed class LispLanguage : Language
       cg.EmitString(sym.Name);
       cg.EmitCall(typeof(Symbol), "Get");
     }
-    else if(value is Pair)
+    else if(value is Pair) // TODO: make sure that identical lists share the same slot
     { Pair pair = (Pair)value;
       int count = 1;
       while(true)

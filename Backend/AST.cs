@@ -68,6 +68,7 @@ public sealed class LispLanguage : Language
 
   public override MemberContainer Builtins { get { return Backend.Builtins.Instance; }}
   public override string BuiltinsNamespace { get { return "NetLisp.Mods"; } }
+  public override string FileExtensions { get { return ".netlisp"; } }
   public override string Name { get { return "NetLisp"; } }
 
   #region EmitConstant
@@ -861,6 +862,57 @@ public sealed class ListNode : Node
 
   public readonly Node[] Items;
   public readonly Node Dot;
+}
+#endregion
+
+#region VectorNode
+public sealed class VectorNode : Node
+{ public VectorNode(Node[] items) { Items = items; }
+
+  public override void Emit(Scripting.Backend.CodeGenerator cg, ref Type etype)
+  { if(etype==typeof(void))
+    { if(!IsConstant)
+      { cg.MarkPosition(this);
+        cg.EmitVoids(Items);
+      }
+    }
+    else
+    { cg.MarkPosition(this);
+      if(IsConstant) cg.EmitConstantObject(Evaluate());
+      else
+      { cg.MarkPosition(this);
+        cg.EmitObjectArray(Items);
+      }
+      etype = typeof(object[]);
+    }
+    TailReturn(cg);
+  }
+
+  public override object Evaluate() { return MakeObjectArray(Items); }
+  public override Type GetNodeType() { return typeof(object[]); }
+
+  public override void MarkTail(bool tail)
+  { Tail = tail;
+    foreach(Node node in Items) node.MarkTail(false);
+  }
+
+  public override void Optimize()
+  { bool isconst = true;
+    foreach(Node node in Items) if(!node.IsConstant) { isconst=false; break; }
+    IsConstant = isconst;
+  }
+
+  public override void SetFlags()
+  { ClearsStack = HasExcept(Items);
+    Interrupts  = HasInterrupt(Items);
+  }
+
+  public override void Walk(IWalker w)
+  { if(w.Walk(this)) foreach(Node n in Items) n.Walk(w);
+    w.PostWalk(this);
+  }
+
+  public readonly Node[] Items;
 }
 #endregion
 

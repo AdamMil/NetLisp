@@ -387,7 +387,8 @@ public sealed class LispLanguage : Language
 
   #region TypeName
   public override string TypeName(Type type)
-  { switch(Type.GetTypeCode(type))
+  { if(type!=null && type.IsEnum) return type.FullName;
+    switch(Type.GetTypeCode(type))
     { case TypeCode.Boolean: return "bool";
       case TypeCode.Empty: return "nil";
       case TypeCode.Byte:  case TypeCode.SByte: return "fixnum8";

@@ -28,75 +28,73 @@ using Scripting.Backend;
 namespace NetLisp.Backend
 {
 
-public sealed class CodeGenerator : Scripting.Backend.CodeGenerator
-{ public CodeGenerator(TypeGenerator tg, MethodBase mb, ILGenerator ilg) : base(tg, mb, ilg) { }
-
-  public void EmitList(Node[] items) { EmitList(items, null, 0); }
-  public void EmitList(Node[] items, Node dot) { EmitList(items, dot, 0); }
-  public void EmitList(Node[] items, int start) { EmitList(items, null, start); }
-  public void EmitList(Node[] items, Node dot, int start)
-  { bool hasTryNode = false;
-    for(int i=start; i<items.Length; i++) if(items[i] is TryNode) { hasTryNode=true; break; }
-    if(!hasTryNode) hasTryNode = dot is TryNode;
+public static class CG
+{ public static void EmitList(CodeGenerator cg, Node[] items) { EmitList(cg, items, null, 0); }
+  public static void EmitList(CodeGenerator cg, Node[] items, Node dot) { EmitList(cg, items, dot, 0); }
+  public static void EmitList(CodeGenerator cg, Node[] items, int start) { EmitList(cg, items, null, start); }
+  public static void EmitList(CodeGenerator cg, Node[] items, Node dot, int start)
+  { bool hasTryNode = Node.HasExcept(items, start, items.Length-start);
+    if(!hasTryNode) hasTryNode = dot!=null && dot.ClearsStack;
 
     ConstructorInfo cons = typeof(Pair).GetConstructor(new Type[] { typeof(object), typeof(object) });
-    if(start==items.Length) ILG.Emit(OpCodes.Ldnull);
+    if(start==items.Length) cg.EmitNull();
     else if(!hasTryNode)
-    { for(int i=start; i<items.Length; i++) items[i].Emit(this);
-      EmitNode(dot);
-      for(int i=start; i<items.Length; i++) EmitNew(cons);
+    { for(int i=start; i<items.Length; i++) items[i].Emit(cg);
+      cg.EmitNode(dot);
+      for(int i=start; i<items.Length; i++) cg.EmitNew(cons);
     }
     else if(start==items.Length-1)
     { if(dot==null)
-      { items[start].Emit(this);
-        ILG.Emit(OpCodes.Ldnull);
-        EmitNew(cons);
+      { items[start].Emit(cg);
+        cg.EmitNull();
+        cg.EmitNew(cons);
       }
       else
-      { Slot tmp=AllocLocalTemp(typeof(object)), dtmp=AllocLocalTemp(typeof(object));
-        items[start].Emit(this);
-        tmp.EmitSet(this);
-        dot.Emit(this);
-        dtmp.EmitSet(this);
-        tmp.EmitGet(this);
-        dtmp.EmitGet(this);
-        EmitNew(cons);
-        FreeLocalTemp(tmp);
-        FreeLocalTemp(dtmp);
+      { Slot tmp=cg.AllocLocalTemp(typeof(object)), dtmp=cg.AllocLocalTemp(typeof(object));
+        items[start].Emit(cg);
+        tmp.EmitSet(cg);
+        dot.Emit(cg);
+        dtmp.EmitSet(cg);
+        tmp.EmitGet(cg);
+        dtmp.EmitGet(cg);
+        cg.EmitNew(cons);
+        cg.FreeLocalTemp(tmp);
+        cg.FreeLocalTemp(dtmp);
       }
     }
     else
-    { Slot head=AllocLocalTemp(typeof(Pair)), tail=AllocLocalTemp(typeof(Pair)), next=AllocLocalTemp(typeof(Pair));
+    { Slot head=cg.AllocLocalTemp(typeof(Pair)), tail=cg.AllocLocalTemp(typeof(Pair)),
+           next=cg.AllocLocalTemp(typeof(Pair));
       FieldInfo cdr = typeof(Pair).GetField("Cdr");
 
-      items[start].Emit(this);
-      ILG.Emit(OpCodes.Ldnull);
-      EmitNew(cons);
-      ILG.Emit(OpCodes.Dup);
-      head.EmitSet(this);
-      tail.EmitSet(this);
+      items[start].Emit(cg);
+      cg.EmitNull();
+      cg.EmitNew(cons);
+      cg.ILG.Emit(OpCodes.Dup);
+      head.EmitSet(cg);
+      tail.EmitSet(cg);
 
       for(int i=start+1; i<items.Length; i++)
-      { items[i].Emit(this);
-        ILG.Emit(OpCodes.Ldnull);
-        EmitNew(cons);
-        next.EmitSet(this);
-        tail.EmitGet(this);
-        next.EmitGet(this);
-        EmitFieldSet(cdr);
-        next.EmitGet(this);
-        tail.EmitSet(this);
+      { items[i].Emit(cg);
+        cg.EmitNull();
+        cg.EmitNew(cons);
+        next.EmitSet(cg);
+        tail.EmitGet(cg);
+        next.EmitGet(cg);
+        cg.EmitFieldSet(cdr);
+        next.EmitGet(cg);
+        tail.EmitSet(cg);
       }
 
-      head.EmitGet(this);
+      head.EmitGet(cg);
 
-      FreeLocalTemp(head);
-      FreeLocalTemp(tail);
-      FreeLocalTemp(next);
+      cg.FreeLocalTemp(head);
+      cg.FreeLocalTemp(tail);
+      cg.FreeLocalTemp(next);
     }
   }
 
-  public void EmitPair(Node node) { node.EmitTyped(this, typeof(Pair)); }
+  public static void EmitPair(CodeGenerator cg, Node node) { node.EmitTyped(cg, typeof(Pair)); }
 }
 
 }

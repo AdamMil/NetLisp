@@ -72,7 +72,7 @@ public sealed class LispLanguage : Language
   public override string Name { get { return "NetLisp"; } }
 
   #region EmitConstant
-  public override bool EmitConstant(Scripting.Backend.CodeGenerator cg, object value)
+  public override bool EmitConstant(CodeGenerator cg, object value)
   { if(value is Symbol)
     { Symbol sym = (Symbol)value;
       cg.EmitString(sym.Name);
@@ -172,17 +172,16 @@ public sealed class LispLanguage : Language
   }
 
   #region InlineFunction
-  public override bool InlineFunction(Scripting.Backend.CodeGenerator scg, string name, CallNode node, ref Type etype)
+  public override bool InlineFunction(CodeGenerator cg, string name, CallNode node, ref Type etype)
   { string op;
-    if(ops.TryGetValue(name, out op)) return base.InlineFunction(scg, op, node, ref etype);
+    if(ops.TryGetValue(name, out op)) return base.InlineFunction(cg, op, node, ref etype);
 
-    CodeGenerator cg = (CodeGenerator)scg;
     Node[] args = node.GetArgNodes();
     switch(name) // functions with side effects
     { case "set-car!": case "set-cdr!":
         node.CheckArity(2);
         if(etype==typeof(void))
-        { cg.EmitPair(args[0]);
+        { CG.EmitPair(cg, args[0]);
           args[1].Emit(cg);
           cg.EmitFieldSet(typeof(Pair), name=="set-car!" ? "Car" : "Cdr");
         }
@@ -190,7 +189,7 @@ public sealed class LispLanguage : Language
         { Slot tmp = cg.AllocLocalTemp(typeof(object));
           args[1].Emit(cg);
           tmp.EmitSet(cg);
-          cg.EmitPair(args[0]);
+          CG.EmitPair(cg, args[0]);
           tmp.EmitGet(cg);
           cg.EmitFieldSet(typeof(Pair), name=="set-car!" ? "Car" : "Cdr");
           tmp.EmitGet(cg);
@@ -261,7 +260,7 @@ public sealed class LispLanguage : Language
       case "car": case "cdr":
         node.CheckArity(1);
         if(etype==typeof(void)) { cg.EmitVoids(args); return true; }
-        cg.EmitPair(args[0]);
+        CG.EmitPair(cg, args[0]);
         cg.EmitFieldGet(typeof(Pair), name=="car" ? "Car" : "Cdr");
         goto objret;
       case "char-upcase": case "char-downcase":
@@ -284,7 +283,7 @@ public sealed class LispLanguage : Language
       case "list":
         if(etype==typeof(void)) { cg.EmitVoids(args); return true; }
         else
-        { cg.EmitList(args);
+        { CG.EmitList(cg, args);
           etype = typeof(Pair);
           return true;
         }
@@ -314,11 +313,7 @@ public sealed class LispLanguage : Language
   }
 
   public override bool IsConstantFunction(string name) { return Array.BinarySearch(constant, name)>=0; }
-  public override bool IsHashableConstant(object value) { return value is Symbol; }
-
-  public override Scripting.Backend.CodeGenerator MakeCodeGenerator(TypeGenerator tg, MethodBase mb, ILGenerator ilg)
-  { return new CodeGenerator(tg, mb, ilg);
-  }
+  public override bool IsHashableConstant(object value) { return base.IsHashableConstant(value) || value is Symbol; }
 
   public override object PackArguments(object[] args, int start, int length)
   { return length>1 ? LispOps.List(args, start, length) : length==0 ? null : new Pair(args[start], null);
@@ -796,7 +791,7 @@ public sealed class AST
 public sealed class DefineNode : Node
 { public DefineNode(string name, Node value) { Set = new SetNode(name, value, SetType.Set); }
 
-  public override void Emit(Scripting.Backend.CodeGenerator cg, ref Type etype)
+  public override void Emit(CodeGenerator cg, ref Type etype)
   { Set.EmitVoid(cg);
     if(etype!=typeof(void))
     { cg.EmitConstantObject(Symbol.Get(((VariableNode)Set.LHS[0]).Name.String));
@@ -827,12 +822,12 @@ public sealed class DefineNode : Node
 public sealed class ListNode : Node
 { public ListNode(Node[] items, Node dot) { Items=items; Dot=dot; }
 
-  public override void Emit(Scripting.Backend.CodeGenerator cg, ref Type etype)
+  public override void Emit(CodeGenerator cg, ref Type etype)
   { if(!IsConstant || etype!=typeof(void))
     { if(IsConstant) cg.EmitConstantObject(Evaluate());
       else
       { cg.MarkPosition(this);
-        ((CodeGenerator)cg).EmitList(Items, Dot);
+        CG.EmitList(cg, Items, Dot);
       }
       etype = Items.Length==0 && Dot==null ? null : typeof(Pair);
     }
@@ -870,7 +865,7 @@ public sealed class ListNode : Node
 public sealed class VectorNode : Node
 { public VectorNode(Node[] items) { Items = items; }
 
-  public override void Emit(Scripting.Backend.CodeGenerator cg, ref Type etype)
+  public override void Emit(CodeGenerator cg, ref Type etype)
   { if(etype==typeof(void))
     { if(!IsConstant)
       { cg.MarkPosition(this);

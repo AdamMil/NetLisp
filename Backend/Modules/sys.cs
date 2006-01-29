@@ -26,10 +26,8 @@ using NetLisp.Backend;
 namespace NetLisp.Mods
 {
 
-public sealed class sys
-{ sys() { }
-
-  public static readonly ArrayList path = new ArrayList(new string[] { "." });
+public static class sys
+{ public static readonly ArrayList path = new ArrayList(new string[] { "." });
   public static readonly Hashtable modules = new Hashtable();
 }
 

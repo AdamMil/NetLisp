@@ -37,11 +37,11 @@ public sealed class LispOps
     }
   }
 
-  public static Snippet CompileRaw(object obj)
+  public static DynamicSnippet CompileRaw(object obj)
   { Language old = Options.Current.Language;
     try
     { Options.Current.Language = LispLanguage.Instance;
-      return SnippetMaker.Generate(Scripting.AST.CreateCompiled(AST.Create(obj)));
+      return SnippetMaker.GenerateDynamic(Scripting.AST.CreateCompiled(AST.Create(obj)));
     }
     finally { Options.Current.Language = old; }
   }

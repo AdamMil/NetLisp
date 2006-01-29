@@ -28,10 +28,8 @@ using NetLisp.Backend;
 namespace NetLisp.Mods
 {
 
-public sealed class types
-{ types() { }
-
-  public static readonly ReflectedType @bool = ReflectedType.FromType(typeof(bool));
+public static class types
+{ public static readonly ReflectedType @bool = ReflectedType.FromType(typeof(bool));
   public static readonly ReflectedType cast = ReflectedType.FromType(typeof(Cast));
   public static readonly ReflectedType @char = ReflectedType.FromType(typeof(char));
   public static readonly ReflectedType complex = ReflectedType.FromType(typeof(Complex));

@@ -2258,7 +2258,7 @@ public sealed class Builtins
     public override object Call(object[] args)
     { CheckArity(args);
       object func = args[0];
-      return Ops.FromBool(!(func is Closure) && Ops.IsProcedure(func));
+      return Ops.FromBool(!(func is ClosureBase) && Ops.IsProcedure(func));
     }
   }
   #endregion
@@ -3360,7 +3360,11 @@ public sealed class Builtins
 
   // TODO: scheme-report-environment, null-environment, interaction-environment, etc
   #region Evaluation / compilation
-  public static Snippet compile(object obj) { return LispOps.CompileRaw(Ops.Call("expand", obj)); }
+  public static Snippet compile(object obj)
+  { Snippet snippet = obj as Snippet;
+    return snippet!=null ? snippet : LispOps.CompileRaw(Ops.Call("expand", obj));
+  }
+
   // TODO: consider not always compiling... perhaps simple expressions can be interpreted
   #region eval
   public sealed class eval : Primitive

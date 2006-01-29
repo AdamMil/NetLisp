@@ -25,10 +25,8 @@ using Scripting;
 namespace NetLisp.Mods
 {
 
-public sealed class math
-{ math() { }
-
-  // TODO: lcm, gcd, etc
+public static class math
+{ // TODO: lcm, gcd, etc
   #region abs
   public sealed class abs : Primitive
   { public abs() : base("abs", 1, 1) { }

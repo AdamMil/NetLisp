@@ -76,7 +76,7 @@ namespace NetLisp.Backend
 
 (define expand (lambda (x) (initial-expander x initial-expander)))
 
-(define #_body-expander
+(define _body-expander
   (lambda (x e)
     (set! x (e x e))
     (if (if (pair? (car x)) (eq? (caar x) 'define) #f)
@@ -88,7 +88,7 @@ namespace NetLisp.Backend
                           (cdr x)) nil)))
         x)))
 
-(define #_quoteList
+(define _quoteList
   (lambda (lst)
     (map (lambda (v) (cons 'quote (cons v nil))) lst)))
 
@@ -149,16 +149,16 @@ namespace NetLisp.Backend
                                          (list (car init) (e (cadr init) e))
                                          init))
                       bindings)
-                ,@(#_body-expander (cddr x) e))))))
+                ,@(_body-expander (cddr x) e))))))
 
 (install-expander 'let-values
   (lambda (x e)
     (let ((bindings (cadr x)))
       `(let-values ,(map (lambda (init) (list (car init) (e (cadr init) e))) bindings)
-         ,@(#_body-expander (cddr x) e)))))
+         ,@(_body-expander (cddr x) e)))))
 
 (install-expander 'lambda
-  (lambda (x e) `(lambda ,(cadr x) ,@(#_body-expander (cddr x) e))))
+  (lambda (x e) `(lambda ,(cadr x) ,@(_body-expander (cddr x) e))))
 
 (install-expander 'defmacro
   (lambda (x e)
@@ -329,25 +329,25 @@ namespace NetLisp.Backend
 
 (install-expander 'import
   (lambda (x e)
-    `(#%import ,@(#_quoteList (cdr x)))))
+    `(#%import ,@(_quoteList (cdr x)))))
 
 (install-expander 'import-syntax
   (lambda (x e)
-    (apply #%import (#_quoteList (cdr x)))
+    (apply #%import (_quoteList (cdr x)))
     nil))
 
 (install-expander 'import*
   (lambda (x e)
-    `(#%import* ,@(#_quoteList (cdr x)))))
+    `(#%import* ,@(_quoteList (cdr x)))))
 
 (install-expander 'import-syntax*
   (lambda (x e)
-    (apply #%import* (#_quoteList (cdr x)))
+    (apply #%import* (_quoteList (cdr x)))
     nil))
 
 (install-expander 'module
   (lambda (x e)
-    (#_null-expander (caddr x) `(#%module ,(cadr x) ,@(cdddr x)) e)))
+    (_null-expander (caddr x) `(#%module ,(cadr x) ,@(cdddr x)) e)))
 ")]
 #endregion
 
@@ -1520,7 +1520,7 @@ public sealed class Builtins
   }
 
   public sealed class _nullExpander : Primitive
-  { public _nullExpander() : base("#_null-expander", 3, 3) { }
+  { public _nullExpander() : base("_null-expander", 3, 3) { }
     public override object Call(object[] args)
     { CheckArity(args);
       TopLevel old = TopLevel.Current;
@@ -3444,7 +3444,7 @@ public sealed class Builtins
       string modName = name.Name;
       MemberContainer module = Importer.Load(modName);
 
-      if(args.Length==1) module.Import(TopLevel.Current);
+      if(args.Length==1) module.Export(TopLevel.Current);
       else
         for(int i=1; i<args.Length; i++)
         { Pair pair = args[i] as Pair;

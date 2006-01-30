@@ -107,23 +107,19 @@ public sealed class LispOps
   public static object FastCddr(Pair pair) { return ((Pair)pair.Cdr).Cdr; }
 
   public void Import(MemberContainer mc, TopLevel top, Pair bindings)
-  { if(bindings==null)
-    { object obj;
-      if(Ops.GetSlot(mc, "*EXPORTS*", out obj)) bindings = obj as Pair;
-    }
-    if(bindings==null) mc.Import(top, null, null);
+  { if(bindings==null) mc.Export(top);
     else
       using(CachedList<string> names=CachedList<string>.Alloc(), asNames=CachedList<string>.Alloc())
       { do
         { string name = bindings.Car as string, asName;
-          if(name!=null) asName=name;
+          if(name!=null) asName = name;
           else
           { Pair pair = bindings.Car as Pair;
-            if(pair!=null)
+            if(pair==null) asName = null;
+            else
             { name = pair.Car as string;
               asName = pair.Cdr as string;
             }
-            else asName=null;
             if(name==null || asName==null)
               throw new ArgumentException("export list should be composed of strings and (name . asName) pairs");
           }
@@ -133,7 +129,7 @@ public sealed class LispOps
           bindings = bindings.Cdr as Pair;
         } while(bindings!=null);
 
-        mc.Import(top, names.ToArray(), asNames.ToArray());
+        mc.Export(top, names.ToArray(), asNames.ToArray());
       }
   }
 

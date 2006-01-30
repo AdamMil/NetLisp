@@ -153,8 +153,6 @@ public sealed class LispLanguage : Language
   }
   #endregion
 
-  public override bool ExcludeFromImport(string name) { return name.StartsWith("#_"); }
-
   public override Type GetInlinedResultType(string functionName)
   { string op;
     if(ops.TryGetValue(functionName, out op)) return base.GetInlinedResultType(op);

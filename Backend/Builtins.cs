@@ -629,8 +629,6 @@ public sealed class Builtins
       IDictionary dict = args[0] as IDictionary;
       if(dict!=null) return dict[args[1]] = value;
 
-      // TODO: strings?
-
       Pair pair = args[0] as Pair;
       if(pair!=null)
       { pair = Mods.Srfi1.drop.core(name, pair, Ops.ExpectInt(args[1]));
@@ -1473,7 +1471,7 @@ public sealed class Builtins
       return copy(LispOps.ExpectPair(args[0]));
     }
 
-    static object copy(object obj) // TODO: optimize this
+    static object copy(object obj) // TODO: this can be optimized (see srfi-1? maybe use iteration?)
     { Pair pair = obj as Pair;
       if(pair==null) return obj;
       return new Pair(copy(pair.Car), copy(pair.Cdr));
@@ -3374,7 +3372,7 @@ public sealed class Builtins
       Snippet snip = args[0] as Snippet;
       if(args.Length==1)
       { if(snip==null) snip = compile(args[0]);
-        return snip.Run(null);
+        return snip.Run();
       }
       else
       { TopLevel top=args[1] as TopLevel, old=TopLevel.Current;
@@ -3382,7 +3380,7 @@ public sealed class Builtins
         try
         { TopLevel.Current = top;
           if(snip==null) snip = compile(args[0]);
-          return snip.Run(null);
+          return snip.Run();
         }
         finally { TopLevel.Current = old; }
       }
@@ -3391,7 +3389,7 @@ public sealed class Builtins
     public static object core(object obj)
     { Snippet snip = obj as Snippet;
       if(snip==null) snip = compile(obj);
-      return snip.Run(null);
+      return snip.Run();
     }
   }
   #endregion

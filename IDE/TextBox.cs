@@ -290,8 +290,8 @@ public class LispBox : TextEditorControl
   }
 
   string typed="";
-  
-  static Regex identre = new Regex(@"(?:^|\.|{)([^()[\]#`,@'.{\s]+)", RegexOptions.Compiled|RegexOptions.Singleline);
+
+  static readonly Regex identre = new Regex(@"(?:^|\.|{)([^()[\]#`,@'.{\s]+)", RegexOptions.Compiled|RegexOptions.Singleline);
 }
 #endregion
 

@@ -1,0 +1,1 @@
+An incomplete rewrite of a LISP compiler for .NET. This project is less complete but more technically sophisticated than the NetLispOld compiler.
